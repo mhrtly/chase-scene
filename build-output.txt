@@ -1,0 +1,2 @@
+/Users/runner/work/chase-scene/chase-scene/build/Chase Scene.app: replacing existing signature
+Built /Users/runner/work/chase-scene/chase-scene/build/Chase Scene.app (arm64 x86_64)
