@@ -77,7 +77,8 @@ final class ChaseSceneApp: NSObject, NSApplicationDelegate, NSMenuDelegate {
         }
         refresh()
         if !testMode && !state.preferences.welcomed {
-            DispatchQueue.main.async { [weak self] in self?.showWelcome() }
+            // A timer (not a GCD block) so the modal welcome never stalls the main queue.
+            _ = Timer.scheduledTimer(withTimeInterval: 0.3, repeats: false) { [weak self] _ in self?.showWelcome() }
         }
     }
 
@@ -103,6 +104,7 @@ final class ChaseSceneApp: NSObject, NSApplicationDelegate, NSMenuDelegate {
                     _ = self?.state.expire()
                 }
                 timer.tolerance = wanted / 4
+                RunLoop.main.add(timer, forMode: .common)   // keep expiring while a menu or dialog is open
                 expiryTimer = timer
             }
             timerInterval = wanted

@@ -126,6 +126,21 @@ func requestWithLaunch(_ request: [String: Any], launch: Bool = true) throws -> 
     return try sendRequest(request)
 }
 
+/// Runs work on the main thread through the run loop's common modes, so requests are still
+/// answered while a menu is open or a dialog is up (DispatchQueue.main can stall in those cases).
+func onMainRunLoop(_ work: @escaping () -> [String: Any]) -> [String: Any] {
+    final class Box { var value: [String: Any] = ["ok": false, "error": "Chase Scene is busy; try again."] }
+    let box = Box()
+    let done = DispatchSemaphore(value: 0)
+    CFRunLoopPerformBlock(CFRunLoopGetMain(), CFRunLoopMode.commonModes.rawValue) {
+        box.value = work()
+        done.signal()
+    }
+    CFRunLoopWakeUp(CFRunLoopGetMain())
+    _ = done.wait(timeout: .now() + 1.5)
+    return box.value
+}
+
 final class IPCServer {
     private var fd: Int32 = -1
     private var lockFD: Int32 = -1
@@ -166,7 +181,7 @@ final class IPCServer {
                     let response: [String: Any]
                     do {
                         let request = try readMessage(client)
-                        response = DispatchQueue.main.sync { handler(request) }
+                        response = onMainRunLoop { self.handler(request) }
                     } catch { response = ["ok": false, "error": String(describing: error)] }
                     try? writeAll(client, jsonLine(response))
                 }

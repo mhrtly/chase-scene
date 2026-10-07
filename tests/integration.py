@@ -95,7 +95,7 @@ class RunningAppTests(unittest.TestCase):
         self.assertEqual(begun['state'], 'controlling')
         self.run_binary('signal', json.dumps({'action': 'end', 'session_id': 'cli'}))
         self.assertEqual(self.send({'action': 'status'})['state'], 'idle')
-        self.assertEqual(self.run_binary('version').stdout.strip(), '1.0.0')
+        self.assertEqual(self.run_binary('version').stdout.strip(), '1.0.1')
 
     def test_parallel_sessions_and_owner_isolation(self):
         def begin(i):
