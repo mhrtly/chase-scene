@@ -1,0 +1,60 @@
+name: Build & test
+
+on:
+  push:
+    branches: [main]
+    tags: ['v*']
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: write   # only used to publish releases from version tags
+
+jobs:
+  macos:
+    runs-on: macos-15
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Toolchain
+        run: |
+          sw_vers
+          swiftc --version
+
+      - name: Build the app (universal)
+        run: bash build.sh
+
+      - name: Core tests
+        run: |
+          swiftc -swift-version 5 -module-cache-path build/module-cache \
+            Sources/Core.swift Sources/IPC.swift Sources/Hooks.swift Sources/JSON.swift Sources/Integrations.swift \
+            tests/main.swift -o build/core-tests
+          build/core-tests
+
+      - name: Integration tests
+        run: |
+          swiftc -swift-version 5 -module-cache-path build/module-cache tests/post_mouse.swift -o build/post-mouse
+          python3 tests/integration.py
+
+      - name: Inspect the bundle
+        run: |
+          lipo -archs "build/Chase Scene.app/Contents/MacOS/ChaseScene"
+          codesign --verify --verbose "build/Chase Scene.app"
+          du -sh "build/Chase Scene.app"
+
+      - name: Package
+        run: ditto -c -k --keepParent "build/Chase Scene.app" build/Chase-Scene.zip
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Chase-Scene
+          path: build/Chase-Scene.zip
+
+      - name: Publish release
+        if: startsWith(github.ref, 'refs/tags/v')
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "$GITHUB_REF_NAME" build/Chase-Scene.zip \
+            --title "Chase Scene $GITHUB_REF_NAME" --notes-file .github/release-notes.md
