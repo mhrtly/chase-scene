@@ -1,0 +1,34 @@
+name: Install check
+
+# Runs the public one-line installer on a fresh Mac, exactly as a user would.
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+
+jobs:
+  install:
+    runs-on: macos-15
+    timeout-minutes: 15
+    steps:
+      - name: Wait for the release download to be available
+        if: github.event_name == 'release'
+        run: sleep 30
+
+      - name: Run the one-line installer
+        run: curl -fsSL "https://raw.githubusercontent.com/${{ github.repository }}/${{ github.event.release.tag_name || 'main' }}/install.sh" | bash
+
+      - name: Verify the app is installed and running
+        run: |
+          app="/Applications/Chase Scene.app"
+          [ -d "$app" ] || app="$HOME/Applications/Chase Scene.app"
+          test -x "$app/Contents/MacOS/ChaseScene"
+          codesign --verify "$app"
+          xattr -l "$app" | grep -q quarantine && { echo "::error::App is quarantined"; exit 1; } || true
+          for i in $(seq 1 20); do
+            status="$("$app/Contents/MacOS/ChaseScene" status 2>/dev/null)" && break
+            sleep 1
+          done
+          echo "$status"
+          echo "$status" | python3 -c 'import json,sys; s=json.load(sys.stdin); assert s["ok"] and s["detector_running"], s'
+          echo "::notice title=Installer::Installed $("$app/Contents/MacOS/ChaseScene" version) at $app and it is running: $status"
