@@ -6,16 +6,21 @@ on:
     tags: ['v*']
   pull_request:
   workflow_dispatch:
+    inputs:
+      screenshots:
+        description: Capture UI screenshots to the ci-screenshots branch
+        type: boolean
+        default: false
 
 permissions:
-  contents: write   # only used to publish releases from version tags
+  contents: write   # publish releases from version tags (and optional screenshots)
 
 jobs:
   macos:
     runs-on: macos-15
     timeout-minutes: 30
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       - name: Toolchain
         run: |
@@ -23,30 +28,57 @@ jobs:
           swiftc --version
 
       - name: Build the app (universal)
-        run: bash build.sh
+        run: |
+          bash build.sh 2>&1 | tee build-output.txt
+          if grep -q "warning:" build-output.txt; then
+            grep "warning:" build-output.txt | sort -u | sed 's/^/::warning::/'
+          fi
 
       - name: Core tests
         run: |
           swiftc -swift-version 5 -module-cache-path build/module-cache \
             Sources/Core.swift Sources/IPC.swift Sources/Hooks.swift Sources/JSON.swift Sources/Integrations.swift \
             tests/main.swift -o build/core-tests
-          build/core-tests
+          build/core-tests | tee build/core-tests.txt
+          echo "::notice title=Core tests::$(tail -1 build/core-tests.txt)"
 
       - name: Integration tests
         run: |
           swiftc -swift-version 5 -module-cache-path build/module-cache tests/post_mouse.swift -o build/post-mouse
-          python3 tests/integration.py
+          set +e
+          python3 tests/integration.py > build/integration.txt 2>&1
+          status=$?
+          set -e
+          cat build/integration.txt
+          summary="$(grep -E ' \.\.\. |^Ran |^OK|^FAILED' build/integration.txt | sed -E 's/ \(__main__[^)]*\)//')"
+          summary="${summary//'%'/'%25'}"
+          echo "::notice title=Integration tests::${summary//$'\n'/'%0A'}"
+          exit $status
 
       - name: Inspect the bundle
         run: |
-          lipo -archs "build/Chase Scene.app/Contents/MacOS/ChaseScene"
+          archs="$(lipo -archs "build/Chase Scene.app/Contents/MacOS/ChaseScene")"
           codesign --verify --verbose "build/Chase Scene.app"
-          du -sh "build/Chase Scene.app"
+          size="$(du -sh "build/Chase Scene.app" | cut -f1)"
+          echo "::notice title=Bundle::architectures: $archs, size: $size"
+
+      - name: UI screenshots
+        if: github.event_name == 'workflow_dispatch' && inputs.screenshots
+        run: |
+          bash tests/screenshots.sh
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git checkout --orphan ci-screenshots
+          git rm -rfq --cached .
+          cp build/screenshots/* .
+          git add ./*.png ./*.txt
+          git commit -qm "UI screenshots from CI"
+          git push -fq origin ci-screenshots
 
       - name: Package
         run: ditto -c -k --keepParent "build/Chase Scene.app" build/Chase-Scene.zip
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v5
         with:
           name: Chase-Scene
           path: build/Chase-Scene.zip
