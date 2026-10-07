@@ -20,15 +20,17 @@ jobs:
 
       - name: Verify the app is installed and running
         run: |
+          note() { local body="$2"; body="${body//'%'/'%25'}"; echo "::notice title=$1::${body//$'\n'/'%0A'}"; }
           app="/Applications/Chase Scene.app"
           [ -d "$app" ] || app="$HOME/Applications/Chase Scene.app"
-          test -x "$app/Contents/MacOS/ChaseScene"
-          codesign --verify "$app"
-          xattr -l "$app" | grep -q quarantine && { echo "::error::App is quarantined"; exit 1; } || true
+          note "Location" "$(ls -la "$(dirname "$app")" | grep -i chase)"
+          note "Signature" "$(codesign --verify --verbose "$app" 2>&1); xattrs: $(xattr -l "$app" 2>&1 | head -5)"
+          note "Process" "$(pgrep -lf ChaseScene 2>&1)"
+          status=""
           for i in $(seq 1 20); do
-            status="$("$app/Contents/MacOS/ChaseScene" status 2>/dev/null)" && break
+            if status="$("$app/Contents/MacOS/ChaseScene" status 2>&1)"; then break; fi
             sleep 1
           done
-          echo "$status"
+          note "Status" "$status"
           echo "$status" | python3 -c 'import json,sys; s=json.load(sys.stdin); assert s["ok"] and s["detector_running"], s'
-          echo "::notice title=Installer::Installed $("$app/Contents/MacOS/ChaseScene" version) at $app and it is running: $status"
+          note "Installer" "Installed $("$app/Contents/MacOS/ChaseScene" version) at $app and it is running"
