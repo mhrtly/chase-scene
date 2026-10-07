@@ -11,6 +11,10 @@ on:
         description: Capture UI screenshots to the ci-screenshots branch
         type: boolean
         default: false
+      settings_y:
+        description: Screen y of the Settings menu row (0 = skip the submenu shot)
+        type: string
+        default: "0"
 
 permissions:
   contents: write   # publish releases from version tags (and optional screenshots)
@@ -65,7 +69,7 @@ jobs:
       - name: UI screenshots
         if: github.event_name == 'workflow_dispatch' && inputs.screenshots
         run: |
-          bash tests/screenshots.sh
+          SETTINGS_Y="${{ inputs.settings_y }}" bash tests/screenshots.sh
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git checkout --orphan ci-screenshots

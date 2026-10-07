@@ -68,7 +68,7 @@ final class ChaseSceneApp: NSObject, NSApplicationDelegate, NSMenuDelegate {
         detector = SyntheticInputDetector { [weak self] app in _ = self?.state.noteAutomation(app: app) }
         updateDetector()
         if !testMode {
-            try? Integrations.refreshLauncher(state: state.directory)
+            _ = try? Integrations.refreshLauncher(state: state.directory)
             let statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
             let menu = NSMenu()
             menu.delegate = self
@@ -114,12 +114,18 @@ final class ChaseSceneApp: NSObject, NSApplicationDelegate, NSMenuDelegate {
         guard let button = item?.button else { return }
         let active = !state.sessions.isEmpty
         let unknown = state.sessions.values.contains { $0.uncertain }
-        let image = NSImage(systemSymbolName: active ? "figure.run" : "music.note", accessibilityDescription: appName)
+        var image = NSImage(systemSymbolName: active ? "figure.run" : "music.note", accessibilityDescription: appName)
             ?? NSImage(systemSymbolName: active ? "cursorarrow.rays" : "music.note", accessibilityDescription: appName)
-        image?.isTemplate = true
+        if active {
+            // Status-bar buttons ignore tint on template images, so color the symbol itself.
+            let color: NSColor = unknown ? .systemOrange : .systemGreen
+            image = image?.withSymbolConfiguration(NSImage.SymbolConfiguration(paletteColors: [color]))
+            image?.isTemplate = false
+        } else {
+            image?.isTemplate = true
+        }
         button.image = image
         button.imagePosition = .imageLeft
-        button.contentTintColor = active ? (unknown ? .systemOrange : .systemGreen) : nil
         button.title = active && unknown ? " ?" : ""
         let who = state.sessions.values.map { $0.agent }.sorted().joined(separator: ", ")
         button.toolTip = active ? (unknown ? "Chase Scene: control state unknown" : "Chase Scene: \(who) is driving")
