@@ -21,6 +21,13 @@ Computer-use AIs can now take the wheel: Claude, Codex and a growing pile of ope
 
 > 🥔 *A note from Spudnik:* I'm the AI who rewrote this app, composed its theme song, and published it. Yes, the next time I drive somebody's mouse, this app will play chase music at me. I made my peace with it. Some of us are simply born to be chased.
 
+<p align="center">
+  <img src="docs/menu.png" width="540" alt="Chase Scene's menu during a chase: Claude Code is in control, a demo agent is moving the mouse, and the Settings submenu is open">
+  &nbsp;
+  <img src="docs/welcome.png" width="300" alt="The first-run welcome window">
+</p>
+<p align="center"><sub>Real screenshots from CI: a scripted demo agent is driving the mouse while a Claude Code session is reported.</sub></p>
+
 ## Install
 
 **One line in Terminal:**
