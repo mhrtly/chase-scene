@@ -17,15 +17,19 @@ enum CreditsPainter {
             ?? NSFont(name: "MarkerFelt-Wide", size: size) ?? .boldSystemFont(ofSize: size)
     }
 
-    static func render(deck: CreditDeck, preferences: Preferences, width: CGFloat) -> (CGImage, CGFloat)? {
+    static func sizes(preferences: Preferences, width: CGFloat) -> (name: CGFloat, role: CGFloat, activity: CGFloat, height: CGFloat) {
         let corner = preferences.creditsLayout == "corner"
-        let nameSize: CGFloat = corner ? 38 : 78
-        let roleSize: CGFloat = corner ? 23 : 37
-        let cardHeight: CGFloat = corner ? 122 : 198
-        let height = cardHeight * CGFloat(deck.credits.count) + 50
-        // Rasterize below Retina resolution, then soften the signal. Fuzz comes from the
-        // lettering itself, rather than a sharp modern font with an enormous outer glow.
-        let scale = min(0.85, 720 / width)
+        let name: CGFloat = corner ? 57 : max(112, min(180, width * 0.074))
+        let role: CGFloat = corner ? 30 : max(42, min(64, width * 0.028))
+        let activity: CGFloat = corner ? 18 : 27
+        return (name, role, activity, name * 1.24 + role * 1.28 + activity * 1.2 + (corner ? 32 : 46))
+    }
+
+    static func render(deck: CreditDeck, preferences: Preferences, width: CGFloat) -> (CGImage, CGFloat)? {
+        let style = sizes(preferences: preferences, width: width)
+        let height = style.height * CGFloat(deck.credits.count)
+        // Keep the television softness, with enough resolution for large, solid white glyphs.
+        let scale = min(0.9, 1000 / width)
         let pixelWidth = Int((width * scale).rounded())
         let pixelHeight = Int((height * scale).rounded())
         guard let bitmap = NSBitmapImageRep(bitmapDataPlanes: nil, pixelsWide: pixelWidth,
@@ -36,10 +40,13 @@ enum CreditsPainter {
         NSGraphicsContext.current = graphics
         graphics.cgContext.scaleBy(x: scale, y: scale)
         for (index, credit) in deck.credits.enumerated() {
-            let top = height - 24 - CGFloat(index) * cardHeight
-            draw(credit.role, y: top - roleSize * 1.2, size: roleSize, width: width, preferences: preferences, caps: false)
-            draw(credit.name.uppercased(), y: top - roleSize * 1.5 - nameSize * 1.22,
-                 size: nameSize, width: width, preferences: preferences, caps: true)
+            let top = height - 16 - CGFloat(index) * style.height
+            draw("Now: " + deck.task, y: top - style.activity * 1.15, size: style.activity,
+                 width: width, preferences: preferences, caps: false)
+            draw(credit.role, y: top - style.activity * 1.25 - style.role * 1.22, size: style.role,
+                 width: width, preferences: preferences, caps: false)
+            draw(credit.name.uppercased(), y: top - style.activity * 1.25 - style.role * 1.3 - style.name * 1.22,
+                 size: style.name, width: width, preferences: preferences, caps: true)
         }
         NSGraphicsContext.restoreGraphicsState()
         guard let original = bitmap.cgImage else { return nil }
@@ -56,8 +63,8 @@ enum CreditsPainter {
             for y in 0..<pixelHeight {
                 for x in 0..<pixelWidth {
                     random = random &* 1664525 &+ 1013904223
-                    let variation = CGFloat((random >> 24) & 15) / 700
-                    let gain: CGFloat = (y % 2 == 0 ? 0.978 : 0.947) - variation
+                    let variation = CGFloat((random >> 24) & 15) / 1600
+                    let gain: CGFloat = (y % 2 == 0 ? 1 : 0.987) - variation
                     let offset = (y * pixelWidth + x) * 4
                     for c in 0..<4 { data[offset + c] = UInt8(CGFloat(data[offset + c]) * gain) }
                 }
@@ -70,7 +77,7 @@ enum CreditsPainter {
                              preferences: Preferences, caps: Bool) {
         var selected = font(preferences: preferences, size: size)
         var attributes: [NSAttributedString.Key: Any] = [.font: selected, .kern: caps ? 1.1 : 0.2,
-            .foregroundColor: NSColor(calibratedRed: 0.94, green: 0.95, blue: 0.90, alpha: 1)]
+            .foregroundColor: NSColor.white, .strokeColor: NSColor.black, .strokeWidth: -6.0]
         var line = NSAttributedString(string: text, attributes: attributes)
         let maximum = width * 0.90
         if line.size().width > maximum {
@@ -79,18 +86,24 @@ enum CreditsPainter {
             line = NSAttributedString(string: text, attributes: attributes)
         }
         let shadow = NSShadow()
-        shadow.shadowColor = NSColor.black.withAlphaComponent(0.46)
-        shadow.shadowBlurRadius = 2.8
-        shadow.shadowOffset = NSSize(width: 1.2, height: -1.5)
+        shadow.shadowColor = NSColor.black.withAlphaComponent(0.92)
+        shadow.shadowBlurRadius = 5.5
+        shadow.shadowOffset = NSSize(width: 4.5, height: -5)
         shadow.set()
         line.draw(at: NSPoint(x: (width - line.size().width) / 2, y: y))
         NSShadow().set()
+        // A white stroke thickens the actual letters over their dark outline and shadow.
+        attributes[.strokeColor] = NSColor.white
+        attributes[.strokeWidth] = -2.8
+        NSAttributedString(string: text, attributes: attributes)
+            .draw(at: NSPoint(x: (width - line.size().width) / 2, y: y))
     }
 
     static func writePreview(to url: URL, deck: CreditDeck, preferences: Preferences) throws {
         let width: CGFloat = 1100
-        let height: CGFloat = 850
-        guard let (strip, stripHeight) = render(deck: deck, preferences: preferences, width: width),
+        let sample = CreditDeck(task: deck.task, credits: Array(deck.credits.prefix(3)))
+        let height = sizes(preferences: preferences, width: width).height * CGFloat(sample.credits.count) + 48
+        guard let (strip, stripHeight) = render(deck: sample, preferences: preferences, width: width),
               let bitmap = NSBitmapImageRep(bitmapDataPlanes: nil, pixelsWide: Int(width), pixelsHigh: Int(height),
                 bitsPerSample: 8, samplesPerPixel: 4, hasAlpha: true, isPlanar: false,
                 colorSpaceName: .deviceRGB, bytesPerRow: 0, bitsPerPixel: 0),
@@ -115,42 +128,90 @@ private final class CreditsPanel: NSPanel {
     override var canBecomeMain: Bool { false }
 }
 
+private final class RowCompletion: NSObject, CAAnimationDelegate {
+    let finished: () -> Void
+    init(_ finished: @escaping () -> Void) { self.finished = finished }
+    func animationDidStop(_ anim: CAAnimation, finished flag: Bool) { if flag { finished() } }
+}
+
 final class CreditRollView: NSView {
-    var strip: CALayer?
-    var deck: CreditDeck?
-    var renderKey: String?
+    let rollIdentifier = UUID().uuidString
+    let stream = CreditStream()
+    private var rows: [UUID: CALayer] = [:]
+    private var rowTimer: Timer?
+    private var preferences = Preferences()
+    private var renderKey: String?
+    private var spawnY: CGFloat = 0
+    private var speed: CGFloat = 0
+    private(set) var lastName = ""
+    private(set) var lastTask = ""
+    var isScrolling: Bool { rows.values.contains { $0.animation(forKey: "rise") != nil } }
+    var rowCount: Int { rows.count }
 
     func configure(deck: CreditDeck, preferences: Preferences) {
+        stream.update(deck)
+        setAccessibilityLabel("Fictional rolling credits for \(deck.task)")
         let appearance = "\(bounds.width):\(bounds.height):\(preferences.creditsLayout):\(preferences.creditsFontName ?? "Chewy-Regular"):\(preferences.creditsFontPath ?? "")"
-        guard self.deck != deck || self.renderKey != appearance else { return }
-        self.deck = deck
-        self.renderKey = appearance
+        guard renderKey != appearance || rowTimer == nil else { return }
+        stop()
+        self.preferences = preferences
+        renderKey = appearance
         wantsLayer = true
         layer?.masksToBounds = true
-        strip?.removeFromSuperlayer()
-        guard let (image, height) = CreditsPainter.render(deck: deck, preferences: preferences, width: bounds.width) else { return }
-        let rolling = CALayer()
-        rolling.contents = image
-        rolling.contentsGravity = .resize
-        rolling.magnificationFilter = .linear
-        rolling.minificationFilter = .linear
-        rolling.frame = CGRect(x: 0, y: -height, width: bounds.width, height: height)
-        layer?.addSublayer(rolling)
         let fade = CAGradientLayer()
         fade.frame = bounds
         fade.colors = [NSColor.clear.cgColor, NSColor.black.cgColor, NSColor.black.cgColor, NSColor.clear.cgColor]
-        fade.locations = [0, 0.08, 0.91, 1]
+        fade.locations = [0, 0.05, 0.95, 1]
         layer?.mask = fade
-        let rise = CABasicAnimation(keyPath: "position.y")
-        rise.fromValue = -height / 2
-        rise.toValue = bounds.height + height / 2
-        rise.duration = Double((height + bounds.height) / (preferences.creditsLayout == "corner" ? 32 : 58))
-        rise.timingFunction = CAMediaTimingFunction(name: .linear)
-        rise.repeatCount = .infinity
-        rolling.add(rise, forKey: "roll")
-        strip = rolling
-        setAccessibilityLabel("Fictional rolling credits for \(deck.task)")
+        let height = CreditsPainter.sizes(preferences: preferences, width: bounds.width).height
+        speed = preferences.creditsLayout == "corner" ? 49 : 88
+        let count = Int(ceil(bounds.height / height)) + 1
+        spawnY = bounds.height - height / 2 - CGFloat(count - 1) * height
+        for index in 0..<count { addRow(y: bounds.height - height / 2 - CGFloat(index) * height) }
+        // One callback per credit, never per animation frame. There is no whole-reel loop.
+        let timer = Timer(timeInterval: Double(height / speed), repeats: true) { [weak self] _ in
+            guard let self else { return }
+            self.addRow(y: self.spawnY)
+        }
+        RunLoop.main.add(timer, forMode: .common)
+        rowTimer = timer
     }
+
+    private func addRow(y: CGFloat) {
+        let deck = stream.next()
+        guard let (image, height) = CreditsPainter.render(deck: deck, preferences: preferences, width: bounds.width) else { return }
+        let row = CALayer()
+        row.contents = image
+        row.contentsGravity = .resize
+        row.magnificationFilter = .linear
+        row.minificationFilter = .linear
+        row.frame = CGRect(x: 0, y: y - height / 2, width: bounds.width, height: height)
+        layer?.addSublayer(row)
+        let id = UUID()
+        rows[id] = row
+        lastName = deck.credits[0].name
+        lastTask = deck.task
+        let endY = bounds.height + height / 2
+        let rise = CABasicAnimation(keyPath: "position.y")
+        rise.fromValue = y
+        rise.toValue = endY
+        rise.duration = Double((endY - y) / speed)
+        rise.timingFunction = CAMediaTimingFunction(name: .linear)
+        rise.delegate = RowCompletion { [weak self] in self?.rows.removeValue(forKey: id)?.removeFromSuperlayer() }
+        CATransaction.begin()
+        CATransaction.setDisableActions(true)
+        row.position.y = endY
+        row.add(rise, forKey: "rise")
+        CATransaction.commit()
+    }
+
+    func stop() {
+        rowTimer?.invalidate()
+        rowTimer = nil
+        for row in rows.values { row.removeAllAnimations(); row.removeFromSuperlayer() }
+        rows.removeAll()
+    }
+    deinit { rowTimer?.invalidate() }
 }
 
 final class CreditsOverlay {
@@ -159,8 +220,14 @@ final class CreditsOverlay {
     private var previewTimer: Timer?
     var previewing: Bool { previewTimer != nil }
     var isVisible: Bool { panel?.isVisible ?? false }
-    var isScrolling: Bool { isVisible && view?.strip?.animation(forKey: "roll") != nil }
+    var isScrolling: Bool { isVisible && view?.isScrolling == true }
     var isClickThrough: Bool { panel?.ignoresMouseEvents == true && panel?.canBecomeKey == false }
+
+    var streamStatus: [String: Any] {
+        ["credits_scroll_id": view?.rollIdentifier ?? "", "credits_rows_emitted": view?.stream.emitted ?? 0,
+         "credits_active_rows": view?.rowCount ?? 0, "credits_last_name": view?.lastName ?? "",
+         "credits_last_task": view?.lastTask ?? ""]
+    }
 
     func update(state: ControlState) {
         if previewing { return }
@@ -212,8 +279,7 @@ final class CreditsOverlay {
     func hide() {
         panel?.orderOut(nil)
         // Release textures and animations while idle; no per-frame CPU work or idle timer.
-        view?.strip?.removeAllAnimations()
-        view?.strip?.removeFromSuperlayer()
+        view?.stop()
         panel?.contentView = nil
         panel?.close()
         panel = nil

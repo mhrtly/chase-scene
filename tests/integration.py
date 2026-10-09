@@ -107,7 +107,7 @@ class RunningAppTests(unittest.TestCase):
         self.assertEqual(begun['state'], 'controlling')
         self.run_binary('signal', json.dumps({'action': 'end', 'session_id': 'cli'}))
         self.assertEqual(self.send({'action': 'status'})['state'], 'idle')
-        self.assertEqual(self.run_binary('version').stdout.strip(), '1.1.0')
+        self.assertEqual(self.run_binary('version').stdout.strip(), '1.2.0')
 
     def test_parallel_sessions_and_owner_isolation(self):
         def begin(i):
@@ -231,6 +231,42 @@ class RunningAppTests(unittest.TestCase):
         self.assertFalse(status['credits_visible'])
         self.assertFalse(status['playing'])
         self.assertEqual(status['state'], 'idle')
+
+    @unittest.skipUnless(TEST_AUDIO, 'Set CHASE_SCENE_TEST_AUDIO=1 to test the native live roll')
+    def test_live_credits_continue_past_six_and_accept_action_updates(self):
+        self.send({'action': 'set_credits_layout', 'layout': 'corner'})
+        self.send({'action': 'set_credits_enabled', 'enabled': True})
+        self.hook('codex', session_id='live-feed', turn_id='live', hook_event_name='PreToolUse',
+                  tool_name='mcp__cua_repl__js')
+        initial = self.send({'action': 'status'})
+        scroll_id = initial['credits_scroll_id']
+        self.assertTrue(scroll_id)
+        deadline = time.monotonic() + 12
+        seen = set()
+        while time.monotonic() < deadline:
+            status = self.send({'action': 'status'})
+            self.assertTrue(status['credits_scrolling'])
+            self.assertGreater(status['credits_active_rows'], 0)
+            self.assertLessEqual(status['credits_active_rows'], 6)
+            self.assertEqual(status['credits_scroll_id'], scroll_id)
+            seen.add(status['credits_last_name'])
+            if status['credits_rows_emitted'] > 7:
+                break
+            time.sleep(.2)
+        self.assertGreater(status['credits_rows_emitted'], 7)
+        self.assertGreater(len(seen), 2)
+        before_update = status['credits_rows_emitted']
+        metadata = {'task': 'Place Safari on the left', 'credits': [
+            {'role': 'Left wing coordination', 'name': 'Pat T. Placement'}]}
+        self.hook('codex', session_id='live-feed', turn_id='live', hook_event_name='PreToolUse',
+                  tool_name='mcp__cua_repl__js', tool_input={'code': '// chase-credits: ' + json.dumps(metadata) + '\nawait app.click(5);'})
+        status = self.wait_for(lambda s: s['credits_last_name'] == 'Pat T. Placement')
+        self.assertEqual(status['credits_last_task'], 'Place Safari on the left')
+        self.assertEqual(status['credits_scroll_id'], scroll_id)
+        self.assertGreater(status['credits_rows_emitted'], before_update)
+        ended = self.send({'action': 'end_owner', 'owner': 'hook:codex:live-feed'})
+        self.assertFalse(ended['credits_scrolling'])
+        self.assertEqual(ended['credits_active_rows'], 0)
 
     def test_credit_metadata_does_not_start_control(self):
         status = self.send({'action': 'set_credits', 'task': 'Minimize windows'})

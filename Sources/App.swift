@@ -81,6 +81,7 @@ final class ChaseSceneApp: NSObject, NSApplicationDelegate, NSMenuDelegate {
                                         "credits_scrolling": self.credits.isScrolling,
                                         "credits_click_through": self.credits.isClickThrough,
                                         "credits_preview": self.credits.previewing]
+            status.merge(self.credits.streamStatus) { _, new in new }
             if let audioError = self.audioError { status["audio_error"] = audioError }
             return status
         }

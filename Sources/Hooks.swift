@@ -32,6 +32,10 @@ struct HookAdapter {
             if isControlTool(name, input: event["tool_input"] as? [String: Any] ?? [:]) {
                 result = ["action": "begin", "session_id": id, "owner": owner, "agent": agent, "ttl": 180,
                     "credit_topic": Credits.hookTopic(name: name, input: event["tool_input"] as? [String: Any] ?? [:])]
+                if let deck = Credits.hookCredits(input: event["tool_input"] as? [String: Any] ?? [:]) {
+                    result["task"] = deck.task
+                    result["credits"] = deck.credits.map { ["role": $0.role, "name": $0.name] }
+                }
             } else {
                 result = ["action": "keepalive", "session_id": id, "ttl": 180]
             }

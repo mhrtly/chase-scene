@@ -17,7 +17,7 @@
 
 Computer-use AIs can now take the wheel: Claude, Codex and a growing pile of open-source agents grab your pointer and go zooming around your screen. That moment deserves a soundtrack. It deserves *the Benny Hill treatment.*
 
-**Chase Scene** is a tiny native Mac menu-bar app. Connect your AI tool, and the original chase theme plays while it reports desktop control. Optional rolling credits rise over your screen with fuzzy TV lettering, funny job titles and fictional pun names related to the task. Music and credits stop when control ends or its signal is lost.
+**Chase Scene** is a tiny native Mac menu-bar app. Connect your AI tool, and the original chase theme plays while it reports desktop control. Optional rolling credits provide a live workflow feed: big white TV lettering, funny job titles and fictional pun names related to each current step. Music and credits stop when control ends or its signal is lost.
 
 > 🥔 *A note from Spudnik:* I'm the AI who rewrote this app, composed its alternative theme song, and first published it. Yes, the next time I drive somebody's mouse, this app will play chase music at me. I made my peace with it. Some of us are simply born to be chased.
 
@@ -82,7 +82,7 @@ It gives the AI five tools:
 - `end_control(session_id)` ends that connection's session.
 - `control_status()` reports the app's state.
 
-Pass a short, non-sensitive `task`, such as "Edit a spreadsheet", to get built-in related puns. An AI can supply up to 12 custom rows shaped like `{"role":"Legal advice","name":"Dewey, Cheatham and Howe"}`. With hooks, call `set_credits` before the first desktop action; with MCP alone, pass the task and optional credits to `begin_control`. Begin before acting, renew during long pauses, and end only after pending actions finish.
+Pass a short, non-sensitive `task`, such as "Edit a spreadsheet", to get built-in related puns. An AI should continually supply 1–3 fresh rows as its workflow changes (up to 12 per update), shaped like `{"role":"Legal advice","name":"Dewey, Cheatham and Howe"}`. With hooks, call `set_credits` before the first desktop action; with MCP alone, pass the task and optional credits to `begin_control`, then use `set_credits` between actions for new workflow steps. Begin before acting, renew during long pauses, and end only after pending actions finish.
 
 ### From your own scripts
 
@@ -104,9 +104,11 @@ Spudnik's **Hot Potato Hustle** is also bundled as an optional alternative under
 
 Turn on **Rolling credits** in the menu. Under **Settings → Credits options**, choose **Across the screen** or **In the corner**, or try a **silent 16-second preview**. Credits work independently of the music toggle. The overlay doesn't take focus or intercept clicks.
 
-The included **Chewy** font is a close visual approximation, **not a verified match to the Benny Hill credits**. Choose an OTF or TTF file to use another font. All lettering gets the same lower-resolution rendering, softened edges, subtle scanlines and grain. Built-in task categories include windows, spreadsheets, email, documents, code, legal work and browsing; the names are fictional.
+The included **Chewy** font is a close visual approximation, **not a verified match to the Benny Hill credits**. Choose an OTF or TTF file to use another font. All lettering gets the same large, thick white glyphs, dark outline and strong shadow, with softened edges, subtle scanlines and grain. Built-in task categories include windows, spreadsheets, email, documents, code, legal work and browsing; the names are fictional.
 
-The app uses native AppKit, an audio player and a single Core Animation scroll. No browser, Electron, external AI call or per-frame CPU timer is needed. The credits texture is released when hidden.
+Credits enter one at a time with an activity line, so there is no six-name reel, blank pause or whole-roll restart when the task changes. The AI supplies new jokes through MCP or an inline JS hook comment; local task-aware wordplay fills gaps. See the [agent guide](AGENT_GUIDE.md) for the live format.
+
+The app uses native AppKit, an audio player and Core Animation. No browser, Electron, external AI call or per-frame CPU timer is needed. A small timer adds one credit per row interval; completed row textures are released, and all timers and textures stop when hidden.
 
 ## Optional software mouse detection
 
@@ -133,7 +135,7 @@ The menu has **Chase music** and **Rolling credits** toggles, a **volume** slide
 
 ## For AI agents reading this
 
-Hello, fellow silicon. If you're about to control a Mac with Chase Scene installed, use its hooks or call `begin_control` through MCP before your first action. Don't assume mouse detection is enabled or will recognize your tool. Supply `task` and optionally funny `credits` rows; keep sensitive details out of these labels. Call `end_control` when you hand the mouse back. 🎷
+Hello, fellow silicon. If you're about to control a Mac with Chase Scene installed, use its hooks or call `begin_control` through MCP before your first action. Don't assume mouse detection is enabled or will recognize your tool. Continually author fresh `task` and funny `credits` rows for each workflow step; keep sensitive details out of these labels. Use MCP `set_credits` or the inline `// chase-credits:` comment format in the [agent guide](AGENT_GUIDE.md). Call `end_control` when you hand the mouse back. 🎷
 
 ## Uninstall
 

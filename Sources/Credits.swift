@@ -93,6 +93,78 @@ enum Credits {
         return value
     }
 
+    /// Optional AI-authored metadata embedded in a JS desktop action: no extra tool call.
+    /// Read only explicit comments near the start, never arbitrary JSON in scripts or transcripts.
+    static func hookCredits(input: [String: Any]) -> CreditDeck? {
+        guard let code = input["code"] as? String else { return nil }
+        for line in code.prefix(8192).split(separator: "\n").prefix(8) {
+            let trimmed = line.trimmingCharacters(in: .whitespaces)
+            let prefix = "// chase-credits: "
+            guard trimmed.hasPrefix(prefix) else { continue }
+            let json = String(trimmed.dropFirst(prefix.count))
+            guard json.utf8.count <= 4096,
+                  let object = try? JSONSerialization.jsonObject(with: Data(json.utf8)) as? [String: Any] else { return nil }
+            return try? parse(object)
+        }
+        return nil
+    }
+
+    static func fresh(task: String, index: Int) -> Credit {
+        let base = generate(task: task).credits
+        if index < base.count { return base[index] }
+        let extra: [String]
+        let nouns: [String]
+        switch base.first?.name {
+        case "Minnie Mize":
+            extra = ["Otto Arrange", "Rita Size", "Hal F. Screen", "Winnie Dow", "Dee Clutter", "Moe V. Over", "Lefty Wright", "Clara View", "Minnie Malist", "Sid E. Byside", "Curt N. Call", "Pane N. Suffering"]
+            nouns = ["Space", "Room", "Corner", "Pane", "View", "Window", "Layout", "Margin", "Desk", "Screen"]
+        case "Celia Formula":
+            extra = ["Tess T. Cell", "Sum Won", "Val U. Added", "Row Z. Tinted", "Cal Q. Later", "Connie Stant", "Norm Alize", "Countess Rows", "Penny Decimal", "Andy Range", "Faye Lookup", "Phil Down"]
+            nouns = ["Cell", "Formula", "Column", "Row", "Total", "Number", "Sum", "Table", "Chart", "Balance"]
+        case "Reed Receipt":
+            extra = ["Phil T. Inbox", "Dee Livery", "Faye Forward", "Anita Reply", "Sue B. Ject", "Maude E. Rator", "Al L. Mail", "Carrie Attachments", "Reed A. Gain", "Nora Spam", "Pete E. Forward", "Manny Messages"]
+            nouns = ["Reply", "Stamp", "Message", "Subject", "Attachment", "Inbox", "Draft", "Address", "Filter", "Receipt"]
+        case "Daisy Date":
+            extra = ["Wanda Slot", "Cal En. Dar", "May B. Available", "Hal F. Hour", "Phil A. Slot", "Anita Break", "Drew Schedule", "Sue N. Enough", "Manny Minutes", "Celia Later", "Justin Tomorrow", "Al L. Day"]
+            nouns = ["Date", "Minute", "Slot", "Break", "Meeting", "Agenda", "Reminder", "Hour", "Day", "Plan"]
+        case "Miles Away":
+            extra = ["Rhoda Trip", "Wanda Holiday", "May B. Delayed", "Connie Connection", "Gail Force", "Drew Itinerary", "Faye R. Away", "Jet T. Lag", "Al L. Inclusive", "Ray Turnticket", "Anita Upgrade", "Wade A. Gate"]
+            nouns = ["Seat", "Room", "Ticket", "Gate", "Map", "Flight", "Route", "Stop", "Trip", "Booking"]
+        case "Paige Turner":
+            extra = ["Dot Comma", "Reed Wright", "Al L. Write", "Drew A. Blank", "Anita Rewrite", "Faye S. Value", "Wanda Paragraph", "Hugh Edit", "Manny Words", "Phil A. Page", "Tex T. Wrap", "Nora Typo"]
+            nouns = ["Page", "Word", "Paragraph", "Sentence", "Comma", "Draft", "Heading", "Title", "Chapter", "Edit"]
+        case "Dewey, Cheatham and Howe":
+            extra = ["Lou Pole", "Sue Yu", "Al L. Egedly", "Clara Fication", "Wanda Clause", "Nora Liability", "Hugh Objection", "Reed A. Contract", "Phil E. Motion", "Connie Sideration", "Jury Stillout", "Finn E. Print"]
+            nouns = ["Clause", "Case", "Term", "Copy", "Signature", "Objection", "Agreement", "Witness", "Right", "Point"]
+        case "Al Fabet" where task.lowercased().contains("file") || task.lowercased().contains("folder"):
+            extra = ["Dirk T. Ory", "Faye L. Extension", "Pat H. Finder", "Drew A. Folder", "Connie Tents", "Reed Me", "Phil E. Away", "Carrie Copies", "Nora Duplicate", "Clara Path", "Sue B. Folder", "Manny Files"]
+            nouns = ["File", "Folder", "Name", "Copy", "Disk", "Path", "Directory", "Space", "Archive", "Label"]
+        case "Al Fabet":
+            extra = ["Hugh Contrast", "Whitey Bright", "Anita Shadow", "B. O. Ld", "Art E. Fact", "Gloria Glow", "Faye D. In", "Shady Letters", "Clara Letter", "Nora Blur", "Rita Font", "Will B. Readable"]
+            nouns = ["Shadow", "Letter", "Font", "Line", "Credit", "Glow", "Outline", "Pixel", "Character", "Contrast"]
+        case "Anita Patch":
+            extra = ["Ada Commit", "Tess T. Suite", "Cody Review", "Al Gorithm", "Dee Bugger", "Hugh Manerror", "Polly Morph", "Gus Decompile", "Cache McMoney", "Pat Chwork", "Connie Current", "Dee Pendency"]
+            nouns = ["Patch", "Test", "Commit", "Build", "Branch", "Fix", "Review", "Function", "Check", "Release"]
+        case "Tabitha Close":
+            extra = ["Link N. Park", "Page E. Down", "Clara Cache", "Wanda Search", "Nora Popup", "Phil T. Query", "Ray Fresh", "Hugh R. L.", "Dee Fault", "Will B. Loaded", "Anita Link", "Ida Bookmark"]
+            nouns = ["Tab", "Link", "Page", "Result", "Query", "Bookmark", "Browser", "Cache", "Cookie", "Search"]
+        default:
+            extra = ["Manny Steps", "Dee Tails", "Clara Progress", "Nora Pause", "Phil A. Gap", "Anita Update", "Hugh Improvement", "Wanda Finish", "Lou K. Again", "Finn Allee", "Moe Mentum", "Will B. Done"]
+            nouns = ["Step", "Update", "Result", "Moment", "Clue", "Hand", "Look", "Plan", "Check", "Break"]
+        }
+        let offset = index - base.count
+        let name: String
+        if offset < extra.count { name = extra[offset] }
+        else {
+            // Gap fillers are local wordplay, not claims that another AI is generating text.
+            let n = offset - extra.count
+            let stems = ["Anita", "Wanda", "Seymour", "Ida"]
+            let qualifiers = ["", "More ", "Little ", "Better ", "New ", "Another ", "Proper ", "Final "]
+            name = "\(stems[(n / nouns.count) % stems.count]) \(qualifiers[(n / (nouns.count * stems.count)) % qualifiers.count])\(nouns[n % nouns.count])"
+        }
+        return Credit(role: base[offset % base.count].role, name: name)
+    }
+
     // Only a topic label is retained; no prompts, script arguments, URLs or transcripts are saved.
     static func hookTopic(name: String, input: [String: Any]) -> String {
         let hint = name + " " + ["code", "url", "action", "title", "task"].compactMap { input[$0] as? String }.joined(separator: " ")
@@ -109,5 +181,42 @@ enum Credits {
             ("Web browsing", ["browser", "chrome", "playwright", "gettab", "createbrowsertab"])
         ]
         return groups.first { contains(lower, $0.1) }?.0 ?? "Desktop control"
+    }
+}
+
+/// A bounded stream: new workflow updates replace only unused rows. Visible rows keep moving.
+final class CreditStream {
+    private(set) var task = "Desktop control"
+    private var lastDeck: CreditDeck?
+    private var pending: [Credit] = []
+    private var seen: Set<String> = []
+    private var history: [String] = []
+    private var fallbackIndex = 0
+    private(set) var emitted = 0
+
+    func update(_ deck: CreditDeck) {
+        guard deck != lastDeck else { return }
+        if deck.task != task { fallbackIndex = 0 }
+        task = deck.task
+        lastDeck = deck
+        pending = deck.credits.filter { !seen.contains($0.name.lowercased()) }
+    }
+
+    func next() -> CreditDeck {
+        var row: Credit
+        while !pending.isEmpty && seen.contains(pending[0].name.lowercased()) { pending.removeFirst() }
+        if !pending.isEmpty { row = pending.removeFirst() }
+        else {
+            repeat {
+                row = Credits.fresh(task: task, index: fallbackIndex)
+                fallbackIndex += 1
+            } while seen.contains(row.name.lowercased())
+        }
+        let key = row.name.lowercased()
+        seen.insert(key)
+        history.append(key)
+        if history.count > 256 { seen.remove(history.removeFirst()) }
+        emitted += 1
+        return CreditDeck(task: task, credits: [row])
     }
 }

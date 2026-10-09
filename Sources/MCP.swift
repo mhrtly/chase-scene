@@ -22,7 +22,7 @@ final class MusicMCP {
             tool("begin_control", "Start the user's desktop-control music before controlling their local screen. Keep it on between actions. Returns a unique session_id. This indicates control; it does not grant permissions or lock input.",
                  properties: ["agent": ["type": "string", "description": "Your agent or application name."],
                     "task": task, "credits": rows], required: ["agent"]),
-            tool("set_credits", "Supply funny fictional credits for your current task. This never starts music or reports control. With automatic hooks, call this before the first desktop action; without hooks, include task/credits in begin_control. Omit credits for built-in task-related puns.",
+            tool("set_credits", "Author fresh fictional credits as the workflow changes: a short current activity plus 1–3 new funny roles and pun names. Call this between desktop actions, rather than sending one fixed reel for the whole task. Unused rows are replaced; the live roll keeps moving. This never starts music or reports control. With automatic hooks, call this before the first desktop action; without hooks, include task/credits in begin_control. Omit credits for built-in task-related puns.",
                  properties: ["task": task, "credits": rows, "session_id": session], required: ["task"]),
             tool("keepalive", "Renew your live control session during long operations. After 180 seconds without a renewal, music stops and the menu shows signal lost. Begin a new session after a lost signal.",
                  properties: ["session_id": session], required: ["session_id"]),
@@ -83,7 +83,7 @@ final class MusicMCP {
             return response(["protocolVersion": versions.contains(requested) ? requested : versions[0],
                              "capabilities": ["tools": ["listChanged": false]],
                              "serverInfo": ["name": "chase-scene", "version": appVersion],
-                             "instructions": "For local desktop control, begin before acting, keep music on while thinking between actions, renew during long operations, and end only after pending actions finish or control is explicitly returned. Control music is an indicator, not an input lock."])
+                             "instructions": "Before desktop control, begin; renew during long pauses and end after pending actions finish. Throughout control, continually author fresh fictional role/name puns describing the specific step you are doing now and send them through set_credits (1–3 rows per workflow update). Keep task labels non-sensitive. These credits are a live workflow feed, not one repeating six-name reel. With JS tool hooks, you can instead prefix each action with // chase-credits: followed by one-line JSON containing task and credits. Music is an indicator, not an input lock."])
         case "ping": return response([:])
         case "tools/list": return response(["tools": tools])
         case "tools/call":

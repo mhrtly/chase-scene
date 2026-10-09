@@ -1,18 +1,18 @@
-Chase Scene 1.1.0 restores the original chase soundtrack and adds optional rolling credits.
+Chase Scene 1.2.0 makes credits easier to read and turns them into a continuous workflow feed.
 
-- Bundles `mouse_control_theme.mp3` as the default audio. Hot Potato Hustle remains an optional alternative.
-- Adds independent music/credits toggles, full-screen or corner credits, a silent preview, and custom OTF/TTF fonts.
-- Uses fuzzy TV rendering with fictional task-related role titles and pun names. Chewy is the included approximation; the exact Benny Hill font is not verified.
-- Adds task/credits metadata and `set_credits` to the portable MCP server.
-- Stops music and credits on end, interruption, lost signal or restart. An orange warning preserves an unknown state; late hook renewals cannot restart playback.
-- Makes software mouse detection opt-in for new installs. Ordinary utilities can trigger that heuristic; hooks/MCP are recommended.
+- Much larger, heavier white lettering, with a thick dark outline and stronger shadow. The fuzzy television texture remains.
+- Credits enter one at a time, with an activity line. There is no fixed six-name reel or empty pause between loops.
+- New task updates replace only unused credits; visible rows keep moving.
+- The controlling AI can continually author fresh fictional roles and pun names through MCP `set_credits`, or put a `// chase-credits:` JSON comment alongside each JS desktop action. No extra tool call is needed for the hook format.
+- Local task-aware wordplay fills gaps between AI updates; the app makes no external inference calls.
+- Completed row textures are released, and the feed stops when control ends or its signal is lost.
 
-Install the latest release:
+The original `mouse_control_theme.mp3` is still the bundled default. Chewy remains an approximation of the television lettering; custom OTF/TTF fonts are supported.
+
+Install or update:
 
 ```sh
 curl -fsSL https://raw.githubusercontent.com/mhrtly/chase-scene/main/install.sh | bash
 ```
 
-Or download **Chase-Scene.zip**, unzip it and move **Chase Scene.app** to Applications. Open the app, connect your AI in the welcome window or Settings, and optionally enable Rolling credits. Codex requires reviewing new hooks with `/hooks`.
-
-Universal app for macOS 13+ (Apple silicon and Intel), ad-hoc signed. For a manually downloaded copy, macOS may require **System Settings → Privacy & Security → Open Anyway** on first launch. See the [README](https://github.com/mhrtly/chase-scene#readme) for setup and separate media licensing.
+Or download **Chase-Scene.zip** below. Universal native app for macOS 13+ (Apple silicon and Intel), ad-hoc signed. For manual downloads, macOS may require **Privacy & Security → Open Anyway** on first launch. See the [README](https://github.com/mhrtly/chase-scene#readme) and [agent guide](https://github.com/mhrtly/chase-scene/blob/main/AGENT_GUIDE.md).

@@ -163,6 +163,31 @@ _ = state.handle(["action": "keepalive", "session_id": "credits"])
 check(!state.shouldShowCredits, "late hooks cannot resurrect interrupted credits")
 check(state.handle(["action": "set_credits_layout", "layout": "invalid"])["ok"] as? Bool == false, "invalid layout rejected")
 
+// MARK: Continuous credits and per-action authoring
+
+let stream = CreditStream()
+stream.update(Credits.generate(task: "Organize windows"))
+var names: Set<String> = []
+for _ in 0..<40 {
+    let row = stream.next().credits[0]
+    check(names.insert(row.name).inserted, "gap fillers do not repeat a six-name reel")
+}
+let oldCount = stream.emitted
+stream.update(CreditDeck(task: "Place Safari on the left", credits: [Credit(role: "Left wing coordination", name: "Lefty Wright")]))
+check(stream.next().task == "Place Safari on the left", "new work replaces unused stale credits immediately")
+check(stream.emitted == oldCount + 1, "a workflow update retains stream progress")
+let newStream = CreditStream()
+newStream.update(CreditDeck(task: "Test shadows", credits: [Credit(role: "Contrast department", name: "Hugh Contrast")]))
+check(newStream.next().credits[0].name == "Hugh Contrast", "AI-authored jokes take priority")
+newStream.update(CreditDeck(task: "Test shadows", credits: [Credit(role: "Contrast department", name: "Hugh Contrast")]))
+check(newStream.next().credits[0].name != "Hugh Contrast", "identical updates do not requeue jokes")
+let authored = "// chase-credits: {\"task\":\"Place Safari on the left\",\"credits\":[{\"role\":\"Left wing coordination\",\"name\":\"Lefty Wright\"}]}\nawait app.click(5);"
+let authoredHook = adapter.request(["session_id": "live", "turn_id": "now", "hook_event_name": "PreToolUse", "tool_name": "mcp__cua_repl__js", "tool_input": ["code": authored]])!
+check(authoredHook["task"] as? String == "Place Safari on the left", "hook transports the AI's exact current activity")
+check((authoredHook["credits"] as? [[String: String]])?.first?["name"] == "Lefty Wright", "hook transports original AI-authored puns")
+check(Credits.hookCredits(input: ["code": "// chase-credits: {invalid}"]) == nil, "malformed metadata never blocks desktop actions")
+check(Credits.hookCredits(input: ["code": "let s = \"// chase-credits: {}\";"]) == nil, "arbitrary script strings do not become credits")
+
 // MARK: JSON editor
 
 let sample = """
