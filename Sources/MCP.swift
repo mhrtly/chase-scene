@@ -13,14 +13,22 @@ final class MusicMCP {
 
     var tools: [[String: Any]] {
         let session: [String: Any] = ["type": "string", "description": "The session_id returned by begin_control."]
+        let task: [String: Any] = ["type": "string", "maxLength": 160, "description": "A short, non-sensitive task description for the funny rolling credits."]
+        let rows: [String: Any] = ["type": "array", "minItems": 1, "maxItems": 12,
+            "description": "Fictional task-related credits. Write funny role titles and names that are puns, like Page-turning supervision: Paige Turner.",
+            "items": ["type": "object", "properties": ["role": ["type": "string", "maxLength": 64],
+                "name": ["type": "string", "maxLength": 64]], "required": ["role", "name"], "additionalProperties": false]]
         return [
-            tool("begin_control", "Start Chase Scene's chase music before you control the user's local mouse, keyboard or screen, so they can hear that an AI is driving. Keep it on between actions. Returns a unique session_id. This only signals control; it does not grant permissions or lock input.",
-                 properties: ["agent": ["type": "string", "description": "Your agent or application name."]], required: ["agent"]),
-            tool("keepalive", "Renew your control session during long operations. After 180 seconds without a renewal the menu shows 'unknown' and the music keeps playing until you end it.",
+            tool("begin_control", "Start the user's desktop-control music before controlling their local screen. Keep it on between actions. Returns a unique session_id. This indicates control; it does not grant permissions or lock input.",
+                 properties: ["agent": ["type": "string", "description": "Your agent or application name."],
+                    "task": task, "credits": rows], required: ["agent"]),
+            tool("set_credits", "Supply funny fictional credits for your current task. This never starts music or reports control. With automatic hooks, call this before the first desktop action; without hooks, include task/credits in begin_control. Omit credits for built-in task-related puns.",
+                 properties: ["task": task, "credits": rows, "session_id": session], required: ["task"]),
+            tool("keepalive", "Renew your live control session during long operations. After 180 seconds without a renewal, music stops and the menu shows signal lost. Begin a new session after a lost signal.",
                  properties: ["session_id": session], required: ["session_id"]),
-            tool("end_control", "Stop the chase music after finishing all local desktop actions or explicitly handing control back. Wait for pending actions to finish first. This does not cancel actions.",
+            tool("end_control", "Stop your control indicator after finishing all local desktop actions or explicitly handing control back. Wait for pending actions to finish first. This does not cancel actions.",
                  properties: ["session_id": session], required: ["session_id"]),
-            tool("control_status", "Read Chase Scene's music and desktop-control status.",
+            tool("control_status", "Read music and reported local desktop-control status. This cannot detect unintegrated AI tools.",
                  properties: [:], readOnly: true)
         ]
     }
@@ -32,6 +40,7 @@ final class MusicMCP {
             guard let agent = arguments["agent"] as? String, !agent.isEmpty else { throw ControlError.invalid("agent is required.") }
             let id = "\(owner):\(UUID().uuidString)"
             request = ["action": "begin", "session_id": id, "owner": owner, "agent": agent, "via": "mcp"]
+            for key in ["task", "credits"] { if let value = arguments[key] { request[key] = value } }
             let result = try requestWithLaunch(request)
             guard result["ok"] as? Bool == true else { throw ControlError.invalid(result["error"] as? String ?? "Could not start music.") }
             owned.insert(id)
@@ -44,6 +53,13 @@ final class MusicMCP {
             }
             request = ["action": name == "keepalive" ? "keepalive" : "end", "session_id": id, "via": "mcp"]
         case "control_status": request = ["action": "status"]
+        case "set_credits":
+            request = ["action": "set_credits"]
+            for key in ["task", "credits"] { if let value = arguments[key] { request[key] = value } }
+            if let id = arguments["session_id"] as? String {
+                guard owned.contains(id) else { throw ControlError.invalid("session_id must belong to this MCP connection.") }
+                request["session_id"] = id
+            }
         default: throw ControlError.invalid("Unknown tool: \(name)")
         }
         let result = try requestWithLaunch(request, launch: false)
@@ -67,7 +83,7 @@ final class MusicMCP {
             return response(["protocolVersion": versions.contains(requested) ? requested : versions[0],
                              "capabilities": ["tools": ["listChanged": false]],
                              "serverInfo": ["name": "chase-scene", "version": appVersion],
-                             "instructions": "Chase Scene plays chase music while an AI controls this Mac. Before local desktop control, call begin_control; keep the session through thinking pauses, call keepalive during long operations, and call end_control only after pending actions finish or control is explicitly returned. It is an indicator, not an input lock."])
+                             "instructions": "For local desktop control, begin before acting, keep music on while thinking between actions, renew during long operations, and end only after pending actions finish or control is explicitly returned. Control music is an indicator, not an input lock."])
         case "ping": return response([:])
         case "tools/list": return response(["tools": tools])
         case "tools/call":

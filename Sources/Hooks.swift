@@ -9,7 +9,7 @@ struct HookAdapter {
 
     func isControlTool(_ name: String, input: [String: Any]) -> Bool {
         // Chase Scene's own MCP tools must never trigger the chase.
-        if name.contains("chase-scene") || name.contains("chase_scene") { return false }
+        if name.contains("chase-scene") || name.contains("chase_scene") || name.contains("desktop-control-music") || name.contains("desktop_control_music") { return false }
         var pattern = HookAdapter.defaultPattern
         if let data = try? Data(contentsOf: directory.appendingPathComponent("adapters.json")),
            let config = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
@@ -30,7 +30,8 @@ struct HookAdapter {
         case "PreToolUse":
             let name = event["tool_name"] as? String ?? ""
             if isControlTool(name, input: event["tool_input"] as? [String: Any] ?? [:]) {
-                result = ["action": "begin", "session_id": id, "owner": owner, "agent": agent, "ttl": 180]
+                result = ["action": "begin", "session_id": id, "owner": owner, "agent": agent, "ttl": 180,
+                    "credit_topic": Credits.hookTopic(name: name, input: event["tool_input"] as? [String: Any] ?? [:])]
             } else {
                 result = ["action": "keepalive", "session_id": id, "ttl": 180]
             }
@@ -65,7 +66,7 @@ func shouldWarn(directory: URL) -> Bool {
 }
 
 func runHook(client: String) {
-    // No transcript, arguments, screen content, or keystrokes are read beyond the tool name, nor saved.
+    // No transcripts or screen content are read. Selected tool inputs yield only a broad credits topic; raw inputs are never saved.
     let directory = stateDirectory()
     var request: [String: Any]? = nil
     do {

@@ -14,14 +14,15 @@ slices=()
 for arch in $archs; do
   out="$root/build/ChaseScene-$arch"
   swiftc -O -swift-version 5 -module-cache-path "$cache" -target "$arch-apple-macosx13.0" \
-    -framework AppKit -framework AVFoundation -framework ServiceManagement -framework UniformTypeIdentifiers \
+    -framework AppKit -framework AVFoundation -framework ServiceManagement -framework UniformTypeIdentifiers -framework QuartzCore -framework CoreText -framework CoreImage \
     "$root"/Sources/*.swift -o "$out"
   slices+=("$out")
 done
 lipo -create "${slices[@]}" -output "$app/Contents/MacOS/ChaseScene"
 
 cp "$root/Resources/Info.plist" "$app/Contents/Info.plist"
-cp "$root/Resources/Help.html" "$root/Resources/hot-potato-hustle.m4a" "$app/Contents/Resources/"
+cp "$root/Resources/Help.html" "$root/Resources/hot-potato-hustle.m4a" "$root/Resources/mouse_control_theme.mp3" \
+  "$root/Resources/Chewy-Regular.ttf" "$root/Resources/Chewy-LICENSE.txt" "$root/Resources/Media-LICENSE.txt" "$root/LICENSE" "$app/Contents/Resources/"
 
 # App icon, generated from the 1024 px master.
 iconset="$root/build/AppIcon.iconset"

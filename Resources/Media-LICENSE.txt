@@ -1,0 +1,10 @@
+Media assets are separate from the source code's MIT license.
+
+mouse_control_theme.mp3 is the original theme audio supplied by the project owner.
+The MIT source-code license does not grant rights to this recording.
+
+hot-potato-hustle.m4a is the optional original composition by Spudnik, dedicated
+under CC0. Its generation script is tools/compose_hot_potato_hustle.py.
+
+Chewy-Regular.ttf is the Chewy font by Sideshow, distributed under the Apache
+License 2.0. See Chewy-LICENSE.txt and https://github.com/google/fonts/tree/main/apache/chewy.

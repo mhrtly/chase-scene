@@ -33,7 +33,9 @@ time += 21
 state.expire()
 check(state.snapshot()["state"] as? String == "unknown" && state.sessions.count == 1, "stale leases are unknown, not released")
 _ = state.handle(["action": "keepalive", "session_id": "b"])
-check(state.snapshot()["state"] as? String == "controlling", "renew restores live status")
+check(!state.shouldPlay && state.sessions["b"]?.uncertain == true, "late renewal cannot resurrect a stale controller")
+_ = state.handle(["action": "begin", "session_id": "b", "agent": "Claude", "owner": "two"])
+check(state.shouldPlay, "an explicit begin restores control")
 _ = state.handle(["action": "unknown_owner", "owner": "one"])
 check(state.snapshot()["state"] as? String == "controlling", "other-owner interruption leaves this session alone")
 _ = state.handle(["action": "set_enabled", "enabled": false])
@@ -50,6 +52,8 @@ _ = state.handle(["action": "set_enabled", "enabled": true])
 
 // MARK: Automatic detection
 
+check(!state.preferences.autoDetect && !state.noteAutomation(app: "Claude"), "software detection is opt-in")
+_ = state.handle(["action": "set_auto_detect", "enabled": true])
 check(state.noteAutomation(app: "Claude"), "synthetic input starts an automatic session")
 check(state.sessions["auto:Claude"]?.automatic == true && state.snapshot()["state"] as? String == "controlling", "automatic session is live")
 _ = state.handle(["action": "end", "session_id": "auto:Claude"])
@@ -103,6 +107,61 @@ check(adapter.request(["hook_event_name": "Stop"]) == nil, "malformed hooks don'
 let claude = HookAdapter(client: "claude", directory: root)
 check(claude.request(["session_id": "s", "hook_event_name": "StopFailure"])?["action"] as? String == "unknown_owner", "Claude API failure is 'unknown'")
 check(claude.request(["session_id": "s", "agent_id": "sub", "hook_event_name": "SubagentStop"])?["session_id"] as? String == "hook:claude:s:sub", "subagent stop ends only the subagent")
+
+// MARK: Music, expiry and interruption regression checks
+
+_ = state.handle(["action": "begin", "session_id": "lease", "ttl": 1])
+time += 2
+check(!state.shouldPlay, "expired sessions are silent before the expiry callback")
+_ = state.handle(["action": "keepalive", "session_id": "lease"])
+check(!state.shouldPlay, "handle expires the lease before accepting a renewal")
+_ = state.handle(["action": "begin", "session_id": "lease"])
+_ = state.handle(["action": "unknown", "session_id": "lease"])
+check(!state.shouldPlay, "interruption is immediately silent")
+_ = state.handle(["action": "keepalive", "session_id": "lease"])
+check(!state.shouldPlay, "pending hooks cannot resume interrupted playback")
+_ = state.handle(["action": "begin", "session_id": "other"])
+check(state.shouldPlay, "a live controller still plays alongside a stale one")
+_ = state.handle(["action": "end", "session_id": "other"])
+check(!state.shouldPlay, "ending the last live controller silences old indicators")
+let restarted = try ControlState(directory: root.appendingPathComponent("state"))
+check(!restarted.shouldPlay, "restored reported sessions never resume playback")
+
+// MARK: Rolling credits
+
+let legacy = root.appendingPathComponent("legacy")
+try FileManager.default.createDirectory(at: legacy, withIntermediateDirectories: true)
+try Data("{\"enabled\":false,\"volume\":0.07,\"songPath\":\"/personal/song.mp3\"}".utf8)
+    .write(to: legacy.appendingPathComponent("preferences.json"))
+let upgraded = try ControlState(directory: legacy)
+check(!upgraded.preferences.enabled && abs(upgraded.preferences.volume - 0.07) < 0.001
+    && upgraded.preferences.songPath == "/personal/song.mp3", "upgrade retains old music settings")
+check(!upgraded.preferences.creditsEnabled, "credits are opt-in on upgrade")
+check(Credits.generate(task: "Minimize windows").credits.first?.name == "Minnie Mize", "window task has related puns")
+check(Credits.generate(task: "Edit a spreadsheet").credits.first?.name == "Celia Formula", "spreadsheet task has related puns")
+check(Credits.generate(task: "Design rolling credits").credits[1].name == "Will B. Blurry", "credits do not accidentally match the editing category")
+check(Credits.hookTopic(name: "mcp__cua_repl__js", input: ["code": "await tab.goto('https://mail.google.com')", "url": "gmail"]) == "Email", "hook captures a topic label")
+_ = state.handle(["action": "clear"])
+_ = state.handle(["action": "set_credits_enabled", "enabled": true])
+check(!state.shouldShowCredits, "stale sessions never display credits")
+_ = state.handle(["action": "set_credits", "task": "Edit a spreadsheet"])
+check(!state.hasLiveSession && !state.shouldShowCredits, "preparing credits does not claim desktop control")
+_ = state.handle(["action": "begin", "session_id": "credits", "owner": "credits"])
+check(state.shouldShowCredits && state.currentCredits.task == "Edit a spreadsheet", "pending credits attach to next control session")
+_ = state.handle(["action": "set_enabled", "enabled": false])
+check(state.shouldShowCredits && !state.shouldPlay, "credits work while music is muted")
+let custom = [["role": "Legal advice", "name": "Dewey, Cheatham and Howe"]]
+_ = state.handle(["action": "set_credits", "session_id": "credits", "task": "Contract review", "credits": custom])
+_ = state.handle(["action": "begin", "session_id": "credits", "owner": "credits", "credit_topic": "Web browsing"])
+check(state.currentCredits.credits.first?.role == "Legal advice", "ordinary hooks retain the AI's custom jokes")
+check(state.handle(["action": "set_credits", "task": "Bad", "credits": [["role": "bad\nline", "name": "Test"]]])["ok"] as? Bool == false,
+    "invalid credit lines rejected without mutation")
+check(state.currentCredits.credits.first?.role == "Legal advice", "invalid update retains working credits")
+_ = state.handle(["action": "unknown", "session_id": "credits"])
+check(!state.shouldShowCredits, "interruption removes the rolling overlay")
+_ = state.handle(["action": "keepalive", "session_id": "credits"])
+check(!state.shouldShowCredits, "late hooks cannot resurrect interrupted credits")
+check(state.handle(["action": "set_credits_layout", "layout": "invalid"])["ok"] as? Bool == false, "invalid layout rejected")
 
 // MARK: JSON editor
 

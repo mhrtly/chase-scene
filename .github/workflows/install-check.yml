@@ -32,5 +32,5 @@ jobs:
             sleep 1
           done
           note "Status" "$status"
-          echo "$status" | python3 -c 'import json,sys; s=json.load(sys.stdin); assert s["ok"] and s["detector_running"], s'
+          echo "$status" | python3 -c 'import json,sys; s=json.load(sys.stdin); assert s["ok"] and not s["playing"] and not s["credits_visible"] and not s["auto_detect"], s'
           note "Installer" "Installed $("$app/Contents/MacOS/ChaseScene" version) at $app and it is running"

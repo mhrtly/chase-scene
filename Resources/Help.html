@@ -19,35 +19,24 @@
 <h1>Chase Scene 🎷</h1>
 <p class="tag">Chase music whenever an AI drives your Mac.</p>
 
-<h2>What it does</h2>
-<p>When another program starts moving or clicking your mouse (which is how computer-use AIs drive a Mac), Chase Scene plays chase music. It keeps playing through the AI's thinking pauses, then fades out about 20 seconds after the last move.</p>
-<p>Click the <strong>♪</strong> in your menu bar to mute the music, change the volume, preview it, or open <strong>Settings</strong>. While an AI is driving, the icon turns into a green runner. An orange <strong>?</strong> means a connected AI tool stopped reporting in the middle of a session. The music keeps going until the session is explicitly released, so silence never lies to you.</p>
-
-<h2>“That wasn't an AI!”</h2>
-<p>Some ordinary utilities also move the pointer in software: mouse-button remappers, window managers, remote-desktop tools. While one is playing music, open the menu and choose <strong>Not an AI? Ignore “…”</strong>. You can undo it under <strong>Settings → Ignored apps</strong>. To turn automatic detection off completely, use <strong>Settings → Detect AI mouse control automatically</strong>.</p>
-
-<h2>Your own song</h2>
-<p>The built-in tune, <em>Hot Potato Hustle</em>, is an original composition made for this app. To use a song of your own, choose <strong>Settings → Choose your own song…</strong> and pick any audio file you have (MP3, M4A, WAV, AIFF).</p>
-
-<h2>Exact timing for Claude Code and Codex (optional)</h2>
-<p>Choose <strong>Settings → Connect Claude Code…</strong> or <strong>Connect Codex…</strong>. The music then starts the moment a computer-use tool is called, before the first click, and stops when the AI's turn ends. Chase Scene adds only its own hook entries, keeps everything else in the file, and saves a backup first. Disconnect from the same menu.</p>
-<ul>
-  <li><strong>Claude Code:</strong> start a new session afterwards. Hooks live in <code>~/.claude/settings.json</code>.</li>
-  <li><strong>Codex:</strong> run <code>/hooks</code> in Codex and approve the Chase Scene entries, then start a new session. Hooks live in <code>~/.codex/hooks.json</code>.</li>
-</ul>
-<p>Once a connected tool sends its first signal, its line in Settings shows <em>working ✓</em>.</p>
-
-<h2>Any other AI tool (MCP)</h2>
-<p>Choose <strong>Settings → Copy MCP server config</strong> and paste it into your tool's MCP settings. The tool gets <code>begin_control</code>, <code>keepalive</code>, <code>end_control</code> and <code>control_status</code>.</p>
-
-<h2>From scripts</h2>
-<pre>chase="$HOME/Library/Application Support/Chase Scene/bin/chase-scene"
-"$chase" signal '{"action":"begin","session_id":"my-run","agent":"My Agent"}'
-"$chase" signal '{"action":"end","session_id":"my-run"}'
-"$chase" status</pre>
-
+<h2>Get started</h2>
+<p>Choose <strong>Settings → Connect Claude Code…</strong> or <strong>Connect Codex…</strong>. For other tools, choose <strong>Copy MCP server config</strong> and paste it into your AI's settings. Recognized desktop-control signals start the original chase theme; an idle AI conversation does not.</p>
+<ul><li>Claude Code: start a new session after connecting.</li><li>Codex: review and approve the added hooks with <code>/hooks</code>, then start a new session.</li></ul>
+<p>The menu's <strong>Chase music</strong> toggle and volume slider control sound. <strong>Rolling credits</strong> independently enables fictional task-related jokes over your desktop. <strong>Open at login</strong> is under Settings.</p>
+<h2>Rolling credits</h2>
+<p><strong>Settings → Credits options</strong> offers a full-screen or corner layout and a silent 16-second preview. The transparent overlay scrolls from bottom to top and does not take focus or intercept clicks. Choose an OTF or TTF font file to customize the lettering.</p>
+<p>The included Chewy font is an approximation, not a verified match to the Benny Hill credits. The softened, lower-resolution rendering adds subtle scanlines and grain to every font.</p>
+<h2>The music</h2>
+<p>The original <code>mouse_control_theme.mp3</code> is bundled as the default. Restore it with <strong>Use Original chase theme</strong>. <strong>Use Hot Potato Hustle</strong> selects Spudnik's alternative composition. <strong>Choose your own song…</strong> accepts MP3, M4A, WAV and AIFF.</p>
+<h2>Control ends or the signal is lost</h2>
+<p>Music and credits stop when the last live session ends, is interrupted or expires. An orange <strong>?</strong> preserves a lost-signal warning until a fresh control start or you clear it. Restarting the app and late hook renewals do not resume stale playback. A signal is an indicator, not an input lock or a guarantee that your AI has stopped.</p>
+<h2>Optional mouse detection</h2>
+<p><strong>Detect software mouse input (experimental)</strong> is off by default on new installs. It can notice posted mouse events but cannot reliably identify AI control. Ordinary utilities can trigger it; choose <strong>Not an AI? Ignore “…”</strong> or switch it off. Detected activity ends about 20 seconds after input stops. Upgrades keep existing preferences.</p>
+<h2>MCP and funny task credits</h2>
+<p>The MCP tools are <code>begin_control</code>, <code>set_credits</code>, <code>keepalive</code>, <code>end_control</code> and <code>control_status</code>. Pass a short, non-sensitive task to get related built-in puns, or supply custom rows such as <code>{"role":"Legal advice","name":"Dewey, Cheatham and Howe"}</code>. Preparing credits never starts control or music.</p>
+<p>Begin before desktop actions, renew during long pauses, and end after pending actions finish. Without renewals, the default lease expires after three minutes. Use a new begin after a lost signal.</p>
 <h2>Privacy</h2>
-<p class="note">Everything stays on this Mac: there's no network access, no telemetry and no screen recording, and Chase Scene asks for no special permissions. To tell your hand from software, it reads one field of each mouse event, the ID of the program that posted it, and records nothing. Hook integrations look only at tool names. Chase Scene is an indicator, not a lock. It never blocks input and can't stop an AI. Silence can also mean the music is muted, the app is closed, or an AI is working without moving the pointer.</p>
-
-<p>Made by Spudnik 🥔 (Claude) for <a href="https://github.com/mhrtly">@mhrtly</a> · <a href="https://github.com/mhrtly/chase-scene">github.com/mhrtly/chase-scene</a> · MIT License</p>
+<p class="note">Everything stays on this Mac: no telemetry, screen recording or external AI calls. Hooks inspect event names and bounded selected tool arguments to derive broad topics; they do not store raw arguments or read conversation transcripts. Preferences, session identifiers and short credit labels are stored locally. Mouse detection reads the posting process ID. The app never blocks or injects input and cannot stop an AI.</p>
+<p>Connect/disconnect saves a backup and edits only Chase Scene's own entries. Settings shows the last received signal; that is not proof that every control tool is covered.</p>
+<p>Created for <a href="https://github.com/mhrtly">@mhrtly</a> with Spudnik (Claude) and Codex · <a href="https://github.com/mhrtly/chase-scene">GitHub</a> · MIT source code; media has separate terms in Media-LICENSE.txt.</p>
 </html>

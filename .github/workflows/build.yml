@@ -45,7 +45,7 @@ jobs:
       - name: Core tests
         run: |
           swiftc -swift-version 5 -module-cache-path build/module-cache \
-            Sources/Core.swift Sources/IPC.swift Sources/Hooks.swift Sources/JSON.swift Sources/Integrations.swift \
+            Sources/Core.swift Sources/Credits.swift Sources/IPC.swift Sources/Hooks.swift Sources/JSON.swift Sources/Integrations.swift \
             tests/main.swift -o build/core-tests
           build/core-tests | tee build/core-tests.txt
           echo "::notice title=Core tests::$(tail -1 build/core-tests.txt)"

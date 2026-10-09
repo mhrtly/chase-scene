@@ -42,4 +42,4 @@ mv "$tmp/unpacked/$app_name" "$dest/"
 echo "✅ Installed $dest/$app_name"
 
 open "$dest/$app_name"
-echo "Look for the ♪ in your menu bar. The next time an AI grabs your mouse, you'll hear it. 🥔"
+echo "Look for the ♪ in your menu bar. Connect your AI tool there, then turn on Rolling credits if you like. 🥔"

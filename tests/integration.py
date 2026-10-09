@@ -17,6 +17,7 @@ import unittest
 ROOT = pathlib.Path(__file__).resolve().parents[1]
 BINARY = ROOT / 'build/Chase Scene.app/Contents/MacOS/ChaseScene'
 POSTER = ROOT / 'build/post-mouse'
+TEST_AUDIO = os.environ.get('CHASE_SCENE_TEST_AUDIO') == '1'
 
 
 class RunningAppTests(unittest.TestCase):
@@ -28,8 +29,16 @@ class RunningAppTests(unittest.TestCase):
         cls.home.mkdir()
         cls.env = dict(os.environ, CHASE_SCENE_STATE_DIR=str(cls.folder), CHASE_SCENE_HOME=str(cls.home),
                        CHASE_SCENE_NO_AUTO_LAUNCH='1', CHASE_SCENE_AUTO_LINGER='3')
+        cls.folder.mkdir(mode=0o700)
+        (cls.folder / 'preferences.json').write_text(json.dumps({
+            'enabled': True, 'volume': 0, 'welcomed': True, 'autoDetect': False}))
         cls.log = open(pathlib.Path(cls.temp.name) / 'app.log', 'w+')
-        cls.app = subprocess.Popen([str(BINARY), '--test-mode'], env=cls.env, stdout=cls.log, stderr=cls.log)
+        cls.start_app()
+
+    @classmethod
+    def start_app(cls):
+        cls.app = subprocess.Popen([str(BINARY)] + ([] if TEST_AUDIO else ['--test-mode']),
+                                   env=cls.env, stdout=cls.log, stderr=cls.log)
         for _ in range(100):
             try:
                 cls.send({'action': 'status'})
@@ -65,6 +74,9 @@ class RunningAppTests(unittest.TestCase):
     def tearDown(self):
         self.send({'action': 'clear'})
         self.send({'action': 'set_enabled', 'enabled': True})
+        self.send({'action': 'credits_preview_stop'})
+        self.send({'action': 'set_credits_enabled', 'enabled': False})
+        self.send({'action': 'set_auto_detect', 'enabled': False})
 
     def run_binary(self, *args, binary=None, stdin=None, check=True):
         return subprocess.run([str(binary or BINARY), *args], input=stdin, capture_output=True, text=True,
@@ -90,12 +102,12 @@ class RunningAppTests(unittest.TestCase):
     def test_cli_status_and_signal(self):
         status = json.loads(self.run_binary('status').stdout)
         self.assertEqual(status['app'], 'Chase Scene')
-        self.assertTrue(status['auto_detect'])
+        self.assertFalse(status['auto_detect'])
         begun = json.loads(self.run_binary('signal', json.dumps({'action': 'begin', 'session_id': 'cli', 'agent': 'My AI'})).stdout)
         self.assertEqual(begun['state'], 'controlling')
         self.run_binary('signal', json.dumps({'action': 'end', 'session_id': 'cli'}))
         self.assertEqual(self.send({'action': 'status'})['state'], 'idle')
-        self.assertEqual(self.run_binary('version').stdout.strip(), '1.0.1')
+        self.assertEqual(self.run_binary('version').stdout.strip(), '1.1.0')
 
     def test_parallel_sessions_and_owner_isolation(self):
         def begin(i):
@@ -142,6 +154,91 @@ class RunningAppTests(unittest.TestCase):
         self.assertFalse(status['enabled'])
         self.assertEqual(len(status['sessions']), 1)
 
+    @unittest.skipUnless(TEST_AUDIO, 'Set CHASE_SCENE_TEST_AUDIO=1 to test silent real audio playback')
+    def test_audio_cancellation_and_late_hook(self):
+        self.hook('codex', session_id='audio', turn_id='t', hook_event_name='PreToolUse', tool_name='mcp__cua_repl__js')
+        self.assertTrue(self.send({'action': 'status'})['playing'])
+        self.hook('codex', session_id='audio', turn_id='t', hook_event_name='Interrupt')
+        self.assertFalse(self.send({'action': 'status'})['playing'])
+        self.hook('codex', session_id='audio', turn_id='t', hook_event_name='PostToolUse', tool_name='Bash')
+        self.assertFalse(self.send({'action': 'status'})['playing'])
+        self.hook('codex', session_id='audio', turn_id='t', hook_event_name='PreToolUse', tool_name='mcp__cua_repl__js')
+        self.assertTrue(self.send({'action': 'status'})['playing'])
+        self.hook('codex', session_id='audio', turn_id='t', hook_event_name='Stop')
+        self.assertFalse(self.send({'action': 'status'})['playing'])
+
+    @unittest.skipUnless(TEST_AUDIO, 'Set CHASE_SCENE_TEST_AUDIO=1 to test silent real audio playback')
+    def test_audio_expiry_without_followup_request(self):
+        self.assertTrue(self.send({'action': 'begin', 'session_id': 'expiry', 'ttl': 1})['playing'])
+        deadline = time.monotonic() + 4
+        while time.monotonic() < deadline:
+            # Read persistence rather than making a status request that would itself expire the lease.
+            if json.loads((self.folder / 'sessions.json').read_text())['expiry']['uncertain']:
+                break
+            time.sleep(.05)
+        else:
+            self.fail('The expiry timer did not run')
+        self.assertFalse(self.send({'action': 'status'})['playing'])
+
+    @unittest.skipUnless(TEST_AUDIO, 'Set CHASE_SCENE_TEST_AUDIO=1 to test silent real audio playback')
+    def test_audio_overlapping_live_and_unknown_sessions(self):
+        self.send({'action': 'begin', 'session_id': 'lost'})
+        self.send({'action': 'unknown', 'session_id': 'lost'})
+        self.assertTrue(self.send({'action': 'begin', 'session_id': 'live'})['playing'])
+        result = self.send({'action': 'end', 'session_id': 'live'})
+        self.assertFalse(result['playing'])
+        self.assertEqual(result['state'], 'unknown')
+
+    @unittest.skipUnless(TEST_AUDIO, 'Set CHASE_SCENE_TEST_AUDIO=1 to test silent real audio playback')
+    def test_audio_restart_does_not_resume_saved_control(self):
+        self.assertTrue(self.send({'action': 'begin', 'session_id': 'restart'})['playing'])
+        type(self).app.terminate()
+        type(self).app.wait(timeout=5)
+        type(self).start_app()
+        status = self.send({'action': 'status'})
+        self.assertTrue(status['enabled'])
+        self.assertTrue(status['audio_available'])
+        self.assertFalse(status['playing'])
+        self.assertEqual(status['state'], 'unknown')
+
+    @unittest.skipUnless(TEST_AUDIO, 'Set CHASE_SCENE_TEST_AUDIO=1 to test native overlays')
+    def test_credits_follow_live_control_independently_of_sound(self):
+        self.send({'action': 'set_enabled', 'enabled': False})
+        self.send({'action': 'set_credits_layout', 'layout': 'corner'})
+        self.send({'action': 'set_credits_enabled', 'enabled': True})
+        status = self.send({'action': 'begin', 'session_id': 'roll', 'task': 'Minimize windows'})
+        self.assertTrue(status['credits_visible'])
+        self.assertTrue(status['credits_scrolling'])
+        self.assertTrue(status['credits_click_through'])
+        self.assertFalse(status['playing'])
+        self.assertEqual(status['credits_task'], 'Minimize windows')
+        self.assertFalse(self.send({'action': 'unknown', 'session_id': 'roll'})['credits_visible'])
+        self.assertFalse(self.send({'action': 'keepalive', 'session_id': 'roll'})['credits_visible'])
+
+    @unittest.skipUnless(TEST_AUDIO, 'Set CHASE_SCENE_TEST_AUDIO=1 to test native overlays')
+    def test_credits_preview_is_silent_and_stoppable(self):
+        status = self.send({'action': 'credits_preview', 'task': 'App development'})
+        self.assertTrue(status['credits_visible'])
+        self.assertTrue(status['credits_scrolling'])
+        self.assertFalse(status['playing'])
+        self.assertEqual(status['state'], 'idle')
+        self.assertFalse(self.send({'action': 'credits_preview_stop'})['credits_visible'])
+
+    @unittest.skipUnless(TEST_AUDIO, 'Set CHASE_SCENE_TEST_AUDIO=1 to test native overlays')
+    def test_credits_preview_automatically_stops(self):
+        self.assertTrue(self.send({'action': 'credits_preview'})['credits_preview'])
+        status = self.wait_for(lambda s: not s['credits_preview'], timeout=19)
+        self.assertFalse(status['credits_visible'])
+        self.assertFalse(status['playing'])
+        self.assertEqual(status['state'], 'idle')
+
+    def test_credit_metadata_does_not_start_control(self):
+        status = self.send({'action': 'set_credits', 'task': 'Minimize windows'})
+        self.assertEqual(status['state'], 'idle')
+        self.assertFalse(status['playing'])
+        status = self.send({'action': 'begin', 'session_id': 'topic'})
+        self.assertEqual(status['credits_task'], 'Minimize windows')
+
     def test_stalled_client_does_not_block_other_clients(self):
         with socket.socket(socket.AF_UNIX, socket.SOCK_STREAM) as stalled:
             stalled.connect(str(self.folder / 'control.sock'))
@@ -162,10 +259,14 @@ class RunningAppTests(unittest.TestCase):
             init = rpc('initialize', {'protocolVersion': '2025-11-25'})['result']
             self.assertEqual(init['protocolVersion'], '2025-11-25')
             self.assertEqual(init['serverInfo']['name'], 'chase-scene')
-            self.assertEqual(len(rpc('tools/list')['result']['tools']), 4)
-            begun = rpc('tools/call', {'name': 'begin_control', 'arguments': {'agent': 'Other AI'}})['result']
+            self.assertEqual(len(rpc('tools/list')['result']['tools']), 5)
+            begun = rpc('tools/call', {'name': 'begin_control', 'arguments': {'agent': 'Other AI', 'task': 'Edit a spreadsheet'}})['result']
             sid = begun['structuredContent']['session_id']
             self.assertFalse(begun['isError'])
+            self.assertEqual(begun['structuredContent']['credits_task'], 'Edit a spreadsheet')
+            updated = rpc('tools/call', {'name': 'set_credits', 'arguments': {'session_id': sid, 'task': 'Contract review', 'credits': [{'role': 'Legal advice', 'name': 'Dewey, Cheatham and Howe'}]}})['result']
+            self.assertFalse(updated['isError'])
+            self.assertEqual(updated['structuredContent']['credits_task'], 'Contract review')
             self.assertFalse(rpc('tools/call', {'name': 'keepalive', 'arguments': {'session_id': sid}})['result']['isError'])
             self.assertTrue(rpc('tools/call', {'name': 'end_control', 'arguments': {'session_id': 'someone-else'}})['result']['isError'])
             self.assertFalse(rpc('tools/call', {'name': 'end_control', 'arguments': {'session_id': sid}})['result']['isError'])
@@ -211,7 +312,9 @@ class RunningAppTests(unittest.TestCase):
         self.assertEqual(server['args'], ['mcp'])
         self.assertTrue(pathlib.Path(server['command']).resolve().samefile(BINARY))
 
+    @unittest.skipIf(os.environ.get('CHASE_SCENE_SKIP_SYNTHETIC_INPUT') == '1', 'Synthetic input explicitly disabled for this test run')
     def test_synthetic_mouse_input_starts_and_ends_the_chase(self):
+        self.send({'action': 'set_auto_detect', 'enabled': True})
         status = self.send({'action': 'status'})
         self.assertTrue(status['detector_running'])
         poster = subprocess.run([str(POSTER)], capture_output=True, text=True, timeout=30)

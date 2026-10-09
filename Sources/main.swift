@@ -11,6 +11,7 @@ Open the app normally to put it in your menu bar. Command-line modes:
   mcp                           Run the stdio MCP server (begin_control, end_control…)
   mcp-config                    Print an MCP client config snippet
   hook claude|codex             (used by hooks) read one hook event on stdin
+  credits-snapshot PATH [task]  Render a credits preview PNG
   version                       Print the version
 
 CHASE_SCENE_STATE_DIR overrides the private state folder (for testing).
@@ -42,6 +43,11 @@ do {
         if response["ok"] as? Bool != true { exit(1) }
     case "status":
         FileHandle.standardOutput.write(jsonLine(try sendRequest(["action": "status"])))
+    case "credits-snapshot":
+        guard args.count >= 2 else { throw ControlError.invalid("Usage: ChaseScene credits-snapshot /path/preview.png [task]") }
+        _ = NSApplication.shared
+        try CreditsPainter.writePreview(to: URL(fileURLWithPath: args[1]),
+            deck: Credits.generate(task: args.count > 2 ? args[2] : "App development"), preferences: Preferences())
     case "connect", "disconnect":
         let targets = try clients(args.count > 1 ? args[1] : nil)
         if targets.isEmpty { print("Neither Claude Code nor Codex was found on this Mac.") }

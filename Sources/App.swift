@@ -1,6 +1,7 @@
 import AppKit
 import AVFoundation
 import ServiceManagement
+import CoreText
 import UniformTypeIdentifiers
 
 final class ChaseSceneApp: NSObject, NSApplicationDelegate, NSMenuDelegate {
@@ -12,14 +13,13 @@ final class ChaseSceneApp: NSObject, NSApplicationDelegate, NSMenuDelegate {
     var player: AVAudioPlayer?
     var loadedPath: String?
     var audioError: String?
+    let credits = CreditsOverlay()
     var expiryTimer: Timer?
     var timerInterval: TimeInterval = 0
-    var pauseWork: DispatchWorkItem?
     var pausedAt: Date?
-    var fadingOut = false
     var didStart = false
 
-    static let builtInSongName = "Hot Potato Hustle"
+    static let builtInSongName = "Original chase theme"
 
     init(testMode: Bool = false) throws {
         self.testMode = testMode
@@ -30,9 +30,24 @@ final class ChaseSceneApp: NSObject, NSApplicationDelegate, NSMenuDelegate {
     // MARK: Lifecycle
 
     func applicationDidFinishLaunching(_ notification: Notification) {
+        // Keep end signals and lease expiry working through modal settings panels.
+        CFRunLoopAddCommonMode(CFRunLoopGetMain(), CFRunLoopMode(rawValue: RunLoop.Mode.modalPanel.rawValue as CFString))
         do {
             server = IPCServer(directory: state.directory) { [weak self] request in
                 guard let self else { return ["ok": false] }
+                if request["action"] as? String == "credits_preview_stop" {
+                    self.credits.stopPreview()
+                    self.refresh()
+                    return self.state.snapshot()
+                }
+                if request["action"] as? String == "credits_preview" {
+                    if !self.testMode {
+                        let deck = (try? Credits.parse(request)) ?? Credits.generate(task: "Design rolling credits")
+                        self.credits.preview(preferences: self.state.preferences, deck: deck) { [weak self] in self?.refresh() }
+                        self.refresh()
+                    }
+                    return self.state.snapshot()
+                }
                 if request["action"] as? String == "demo" { return self.startPreview() }
                 return self.state.handle(request)
             }
@@ -59,9 +74,13 @@ final class ChaseSceneApp: NSObject, NSApplicationDelegate, NSMenuDelegate {
         state.changed = { [weak self] in self?.refresh() }
         state.audioStatus = { [weak self] in
             guard let self else { return [:] }
-            var status: [String: Any] = ["playing": (self.player?.isPlaying ?? false) && !self.fadingOut,
+            var status: [String: Any] = ["playing": self.player?.isPlaying ?? false,
                                         "audio_available": !self.testMode && self.player != nil,
-                                        "detector_running": self.detector?.isRunning ?? false]
+                                        "detector_running": self.detector?.isRunning ?? false,
+                                        "credits_visible": self.credits.isVisible,
+                                        "credits_scrolling": self.credits.isScrolling,
+                                        "credits_click_through": self.credits.isClickThrough,
+                                        "credits_preview": self.credits.previewing]
             if let audioError = self.audioError { status["audio_error"] = audioError }
             return status
         }
@@ -85,6 +104,7 @@ final class ChaseSceneApp: NSObject, NSApplicationDelegate, NSMenuDelegate {
     func applicationWillTerminate(_ notification: Notification) {
         // Reported sessions come back as "unknown" when the app is reopened.
         if didStart { state.persist() }
+        credits.stopPreview()
         player?.stop()
     }
 
@@ -94,8 +114,9 @@ final class ChaseSceneApp: NSObject, NSApplicationDelegate, NSMenuDelegate {
 
     func refresh() {
         updateAudio()
-        let live = state.sessions.values.filter { !$0.uncertain }
-        let wanted: TimeInterval = live.isEmpty ? 0 : (live.contains { $0.automatic } ? 1 : 5)
+        updateDetector()
+        if !testMode { credits.update(state: state) }
+        let wanted: TimeInterval = state.hasLiveSession ? 1 : 0
         if wanted != timerInterval {
             expiryTimer?.invalidate()
             expiryTimer = nil
@@ -131,12 +152,12 @@ final class ChaseSceneApp: NSObject, NSApplicationDelegate, NSMenuDelegate {
         button.title = active && unknown ? " ?" : ""
         let who = state.sessions.values.map { $0.agent }.sorted().joined(separator: ", ")
         button.toolTip = active ? (unknown ? "Chase Scene: control state unknown" : "Chase Scene: \(who) is driving")
-                                : "Chase Scene: watching for AI mouse control"
+                                : "Chase Scene: waiting for control signals"
     }
 
     // MARK: Audio
 
-    var builtInSongURL: URL? { Bundle.main.url(forResource: "hot-potato-hustle", withExtension: "m4a") }
+    var builtInSongURL: URL? { Bundle.main.url(forResource: "mouse_control_theme", withExtension: "mp3") }
 
     func makePlayer(_ url: URL) throws -> AVAudioPlayer {
         let player = try AVAudioPlayer(contentsOf: url)
@@ -173,11 +194,9 @@ final class ChaseSceneApp: NSObject, NSApplicationDelegate, NSMenuDelegate {
         guard !testMode else { return }
         loadPlayer()
         guard let player else { return }
-        let previewing = state.sessions["demo"] != nil
-        let shouldPlay = !state.sessions.isEmpty && (state.preferences.enabled || previewing)
-        if shouldPlay {
-            pauseWork?.cancel()
-            pauseWork = nil
+        let demo = state.sessions["demo"]
+        let previewing = demo?.uncertain == false && (demo?.expiresAt ?? 0) > state.now()
+        if state.shouldPlay || previewing {
             if !player.isPlaying {
                 if let pausedAt, Date().timeIntervalSince(pausedAt) > 90 { player.currentTime = 0 }
                 player.volume = 0
@@ -186,36 +205,22 @@ final class ChaseSceneApp: NSObject, NSApplicationDelegate, NSMenuDelegate {
                     return
                 }
                 player.setVolume(state.preferences.volume, fadeDuration: 0.15)
-            } else if fadingOut {
-                player.setVolume(state.preferences.volume, fadeDuration: 0.15)
+            } else {
+                player.volume = state.preferences.volume
             }
-            fadingOut = false
         } else if player.isPlaying {
-            if !state.preferences.enabled {
-                pauseNow()                       // muting is immediate
-            } else if !fadingOut {
-                fadingOut = true                 // the chase is over: fade out gracefully
-                player.setVolume(0, fadeDuration: 1.5)
-                let work = DispatchWorkItem { [weak self] in self?.pauseNow() }
-                pauseWork = work
-                DispatchQueue.main.asyncAfter(deadline: .now() + 1.6, execute: work)
-            }
+            // Unknown/stale sessions are a visible warning, not an indefinite soundtrack.
+            player.pause()
+            pausedAt = Date()
         }
-    }
-
-    func pauseNow() {
-        pauseWork?.cancel()
-        pauseWork = nil
-        player?.pause()
-        fadingOut = false
-        pausedAt = Date()
     }
 
     func startPreview() -> [String: Any] {
         let result = state.handle(["action": "begin", "session_id": "demo", "agent": "Song preview", "owner": "demo", "ttl": 10])
-        DispatchQueue.main.asyncAfter(deadline: .now() + 8) { [weak self] in
+        let timer = Timer(timeInterval: 8, repeats: false) { [weak self] _ in
             _ = self?.state.handle(["action": "end", "session_id": "demo"])
         }
+        RunLoop.main.add(timer, forMode: .common)
         return result
     }
 
@@ -245,7 +250,7 @@ final class ChaseSceneApp: NSObject, NSApplicationDelegate, NSMenuDelegate {
         let sessions = state.sessions.values.sorted { $0.agent < $1.agent }
         let header: String
         if sessions.isEmpty {
-            header = state.preferences.autoDetect ? "Watching for AI mouse control" : "Waiting for connected AI tools"
+            header = state.preferences.autoDetect ? "Watching for software mouse input" : "Waiting for connected AI tools"
         } else if sessions.contains(where: { $0.uncertain }) {
             header = "Control state unknown"
         } else {
@@ -266,6 +271,9 @@ final class ChaseSceneApp: NSObject, NSApplicationDelegate, NSMenuDelegate {
         let toggle = action("Chase music", #selector(toggleMusic))
         toggle.state = state.preferences.enabled ? .on : .off
         menu.addItem(toggle)
+        let creditToggle = action("Rolling credits", #selector(toggleCredits))
+        creditToggle.state = state.preferences.creditsEnabled ? .on : .off
+        menu.addItem(creditToggle)
         menu.addItem(volumeItem())
         menu.addItem(action("Preview the music", #selector(preview)))
         menu.addItem(.separator())
@@ -292,7 +300,7 @@ final class ChaseSceneApp: NSObject, NSApplicationDelegate, NSMenuDelegate {
 
     func settingsItems() -> [NSMenuItem] {
         var items: [NSMenuItem] = []
-        let auto = action("Detect AI mouse control automatically", #selector(toggleAutoDetect))
+        let auto = action("Detect software mouse input (experimental)", #selector(toggleAutoDetect))
         auto.state = state.preferences.autoDetect ? .on : .off
         items.append(auto)
         if !state.preferences.ignoredApps.isEmpty {
@@ -301,14 +309,17 @@ final class ChaseSceneApp: NSObject, NSApplicationDelegate, NSMenuDelegate {
             }))
         }
         items.append(.separator())
+        items.append(submenu("Credits options", creditsItems()))
+        items.append(.separator())
         let songName = state.preferences.songPath.map { ($0 as NSString).lastPathComponent } ?? "\(Self.builtInSongName) (built in)"
         items.append(label("Song: \(songName)"))
         items.append(action("Choose your own song…", #selector(chooseSong)))
         if state.preferences.songPath != nil {
             items.append(action("Use \(Self.builtInSongName)", #selector(useBuiltInSong)))
         }
+        items.append(action("Use Hot Potato Hustle (alternative)", #selector(useAlternativeSong)))
         items.append(.separator())
-        items.append(label("Exact timing for AI coding tools (optional)"))
+        items.append(label("Connect your AI tool"))
         let home = Integrations.home()
         for client in Client.allCases {
             guard client.isInstalled(home: home) else {
@@ -332,20 +343,91 @@ final class ChaseSceneApp: NSObject, NSApplicationDelegate, NSMenuDelegate {
         return items
     }
 
+    func creditsItems() -> [NSMenuItem] {
+        var items = [action("Preview credits (silent, 16 seconds)", #selector(previewCredits))]
+        if credits.previewing { items.append(action("Stop preview", #selector(stopCreditsPreview))) }
+        items.append(.separator())
+        let full = action("Across the screen", #selector(fullCredits))
+        full.state = state.preferences.creditsLayout == "full" ? .on : .off
+        items.append(full)
+        let corner = action("In the corner", #selector(cornerCredits))
+        corner.state = state.preferences.creditsLayout == "corner" ? .on : .off
+        items.append(corner)
+        items.append(.separator())
+        items.append(label("Font: \(state.preferences.creditsFontName ?? "Chewy")"))
+        items.append(action("Choose font file…", #selector(chooseCreditsFont)))
+        if state.preferences.creditsFontName != nil {
+            items.append(action("Use included lettering", #selector(resetCreditsFont)))
+        }
+        return items
+    }
+
     func connectionStatus(_ client: Client) -> String {
         guard let last = state.preferences.lastSignal[client.rawValue] else { return "connected, waiting for first signal" }
         let formatter = RelativeDateTimeFormatter()
         formatter.unitsStyle = .short
-        return "working ✓ (last signal \(formatter.localizedString(for: Date(timeIntervalSince1970: last), relativeTo: Date())))"
+        return "last signal \(formatter.localizedString(for: Date(timeIntervalSince1970: last), relativeTo: Date()))"
     }
 
     // MARK: Actions
 
     @objc func toggleMusic() { _ = state.handle(["action": "set_enabled", "enabled": !state.preferences.enabled]) }
 
+    @objc func toggleCredits() {
+        credits.stopPreview()
+        _ = state.handle(["action": "set_credits_enabled", "enabled": !state.preferences.creditsEnabled])
+    }
+    @objc func previewCredits() { _ = server?.handler(["action": "credits_preview"]) }
+    @objc func stopCreditsPreview() { _ = server?.handler(["action": "credits_preview_stop"]) }
+    @objc func fullCredits() {
+        credits.stopPreview()
+        _ = state.handle(["action": "set_credits_layout", "layout": "full"])
+    }
+    @objc func cornerCredits() {
+        credits.stopPreview()
+        _ = state.handle(["action": "set_credits_layout", "layout": "corner"])
+    }
+    @objc func resetCreditsFont() {
+        state.preferences.creditsFontName = nil
+        state.preferences.creditsFontPath = nil
+        state.persist()
+        credits.stopPreview()
+        refresh()
+    }
+    @objc func chooseCreditsFont() {
+        NSApp.activate(ignoringOtherApps: true)
+        let panel = NSOpenPanel()
+        panel.title = "Choose your credits font"
+        panel.message = "Choose an OTF or TTF font. The same soft TV rendering is applied to any font you choose."
+        panel.allowedContentTypes = ["otf", "ttf"].compactMap { UTType(filenameExtension: $0) }
+        panel.canChooseDirectories = false
+        panel.allowsMultipleSelection = false
+        guard panel.runModal() == .OK, let source = panel.url else { return }
+        do {
+            guard let descriptors = CTFontManagerCreateFontDescriptorsFromURL(source as CFURL) as? [CTFontDescriptor],
+                  let first = descriptors.first,
+                  let name = CTFontDescriptorCopyAttribute(first, kCTFontNameAttribute) as? String else {
+                throw ControlError.invalid("This file does not contain a usable font.")
+            }
+            let destination = state.directory.appendingPathComponent("credits-\(UUID().uuidString).\(source.pathExtension.lowercased())")
+            try FileManager.default.copyItem(at: source, to: destination)
+            state.preferences.creditsFontPath = destination.path
+            state.preferences.creditsFontName = name
+            state.persist()
+            credits.stopPreview()
+            refresh()
+            credits.preview(preferences: state.preferences, deck: Credits.generate(task: "Design rolling credits")) { [weak self] in self?.refresh() }
+            refresh()
+        } catch {
+            let alert = NSAlert()
+            alert.messageText = "Could not use this font"
+            alert.informativeText = error.localizedDescription
+            alert.runModal()
+        }
+    }
     @objc func changeVolume(_ sender: NSSlider) {
         state.preferences.volume = Float(sender.doubleValue)
-        if let player, player.isPlaying, !fadingOut { player.volume = state.preferences.volume }
+        if let player, player.isPlaying { player.volume = state.preferences.volume }
         state.persist()
     }
 
@@ -388,6 +470,12 @@ final class ChaseSceneApp: NSObject, NSApplicationDelegate, NSMenuDelegate {
         refresh()
     }
 
+    @objc func useAlternativeSong() {
+        state.preferences.songPath = Bundle.main.url(forResource: "hot-potato-hustle", withExtension: "m4a")?.path
+        state.persist()
+        refresh()
+    }
+
     func inform(_ title: String, _ text: String) {
         NSApp.activate(ignoringOtherApps: true)
         let alert = NSAlert()
@@ -403,7 +491,7 @@ final class ChaseSceneApp: NSObject, NSApplicationDelegate, NSMenuDelegate {
         alert.messageText = "Connect \(client.displayName)?"
         alert.informativeText = """
         Chase Scene will add a few hook entries to \(client.hooksFile(home: Integrations.home()).path) so \(client.displayName) \
-        tells it exactly when computer use starts and ends. The music then plays straight through the AI's thinking pauses.
+        reports recognized computer-use tools. Music continues between actions until the turn ends, or the control signal is lost.
 
         Only Chase Scene's own entries are added, everything else stays as it is, and a backup is saved first. \
         You can disconnect any time from this menu.
@@ -468,8 +556,8 @@ final class ChaseSceneApp: NSObject, NSApplicationDelegate, NSMenuDelegate {
         let alert = NSAlert()
         alert.messageText = "Chase Scene is on duty"
         alert.informativeText = """
-        Whenever an AI (or any other app) starts driving your mouse, you'll hear chase music, so you always know \
-        who's at the wheel.
+        Connect your AI tool below (or use MCP in Settings). When it reports desktop control, the original chase theme plays. \
+        Turn on Rolling credits in the menu for fuzzy TV lettering and fictional task-related puns.
 
         Chase Scene lives in your menu bar: look for the ♪. That's where you mute it, change the volume or pick your own song.
 
@@ -477,11 +565,15 @@ final class ChaseSceneApp: NSObject, NSApplicationDelegate, NSMenuDelegate {
         """
         let login = NSButton(checkboxWithTitle: "Open Chase Scene when I log in", target: nil, action: nil)
         login.state = .on
-        var rows: [NSButton] = [login]
+        let roll = NSButton(checkboxWithTitle: "Show rolling credits during desktop control", target: nil, action: nil)
+        roll.state = state.preferences.creditsEnabled ? .on : .off
+        let detect = NSButton(checkboxWithTitle: "Detect software mouse input (experimental)", target: nil, action: nil)
+        detect.state = state.preferences.autoDetect ? .on : .off
+        var rows: [NSButton] = [login, roll, detect]
         var clientBoxes: [(Client, NSButton)] = []
         let home = Integrations.home()
         for client in Client.allCases where client.isInstalled(home: home) && !Integrations.isConnected(client, home: home) {
-            let box = NSButton(checkboxWithTitle: "Also connect \(client.displayName) for exact timing", target: nil, action: nil)
+            let box = NSButton(checkboxWithTitle: "Connect \(client.displayName)", target: nil, action: nil)
             box.state = .off
             rows.append(box)
             clientBoxes.append((client, box))
@@ -497,6 +589,8 @@ final class ChaseSceneApp: NSObject, NSApplicationDelegate, NSMenuDelegate {
         let response = alert.runModal()
 
         state.preferences.welcomed = true
+        _ = state.handle(["action": "set_credits_enabled", "enabled": roll.state == .on])
+        _ = state.handle(["action": "set_auto_detect", "enabled": detect.state == .on])
         state.persist()
         if login.state == .on, SMAppService.mainApp.status != .enabled { try? SMAppService.mainApp.register() }
         var messages: [String] = []

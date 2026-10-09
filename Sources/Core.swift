@@ -1,7 +1,7 @@
 import Foundation
 
 let appName = "Chase Scene"
-let appVersion = "1.0.1"
+let appVersion = "1.1.0"
 
 struct ControlSession: Codable {
     let id: String
@@ -9,6 +9,10 @@ struct ControlSession: Codable {
     let owner: String
     var expiresAt: Double
     var uncertain: Bool
+    var task: String? = nil
+    var credits: [Credit]? = nil
+    var customCredits: Bool? = nil
+    var startedAt: Double? = nil
 
     /// Sessions the app noticed by itself (synthetic mouse input) rather than ones an AI reported.
     var automatic: Bool { owner == ControlState.automaticOwner }
@@ -18,11 +22,15 @@ struct Preferences: Codable {
     var enabled = true
     var volume: Float = 0.5
     var songPath: String? = nil
-    var autoDetect = true
+    var autoDetect = false
     var ignoredApps: [String] = []
     var welcomed = false
     var quitByUser = false
     var lastSignal: [String: Double] = [:]
+    var creditsEnabled = false
+    var creditsLayout = "full"
+    var creditsFontName: String? = nil
+    var creditsFontPath: String? = nil
 
     init() {}
 
@@ -32,11 +40,15 @@ struct Preferences: Codable {
         enabled = (try? c.decodeIfPresent(Bool.self, forKey: .enabled)) ?? true
         volume = min(1, max(0, (try? c.decodeIfPresent(Float.self, forKey: .volume)) ?? 0.5))
         songPath = try? c.decodeIfPresent(String.self, forKey: .songPath)
-        autoDetect = (try? c.decodeIfPresent(Bool.self, forKey: .autoDetect)) ?? true
+        autoDetect = (try? c.decodeIfPresent(Bool.self, forKey: .autoDetect)) ?? false
         ignoredApps = (try? c.decodeIfPresent([String].self, forKey: .ignoredApps)) ?? []
         welcomed = (try? c.decodeIfPresent(Bool.self, forKey: .welcomed)) ?? false
         quitByUser = (try? c.decodeIfPresent(Bool.self, forKey: .quitByUser)) ?? false
         lastSignal = (try? c.decodeIfPresent([String: Double].self, forKey: .lastSignal)) ?? [:]
+        creditsEnabled = (try? c.decodeIfPresent(Bool.self, forKey: .creditsEnabled)) ?? false
+        creditsLayout = (try? c.decodeIfPresent(String.self, forKey: .creditsLayout)) == "corner" ? "corner" : "full"
+        creditsFontName = try? c.decodeIfPresent(String.self, forKey: .creditsFontName)
+        creditsFontPath = try? c.decodeIfPresent(String.self, forKey: .creditsFontPath)
     }
 
     static func load(from directory: URL) -> Preferences {
@@ -63,6 +75,7 @@ final class ControlState {
     var changed: (() -> Void)?
     var audioStatus: () -> [String: Any] = { [:] }
     var now: () -> Double = { Date().timeIntervalSince1970 }
+    var pendingCredits: CreditDeck?
 
     init(directory: URL) throws {
         self.directory = directory
@@ -95,6 +108,21 @@ final class ControlState {
         return value
     }
 
+    var hasLiveSession: Bool {
+        sessions.values.contains { !$0.uncertain && $0.expiresAt > now() }
+    }
+
+    var shouldPlay: Bool { preferences.enabled && hasLiveSession }
+    var shouldShowCredits: Bool { preferences.creditsEnabled && sessions.values.contains { $0.id != "demo" && !$0.uncertain && $0.expiresAt > now() } }
+    var currentCredits: CreditDeck {
+        let live = sessions.values.filter { $0.id != "demo" && !$0.uncertain && $0.expiresAt > now() }
+            .sorted { ($0.startedAt ?? 0, $0.id) > ($1.startedAt ?? 0, $1.id) }
+        if let session = live.first, let rows = session.credits {
+            return CreditDeck(task: session.task ?? "Desktop control", credits: rows)
+        }
+        return Credits.generate(task: "Desktop control")
+    }
+
     /// Reported sessions whose lease ran out become "unknown" (never silently released).
     /// Automatically detected sessions simply end when the synthetic input stops.
     @discardableResult func expire() -> Bool {
@@ -121,8 +149,15 @@ final class ControlState {
         guard preferences.autoDetect, !isIgnored(app) else { return false }
         let id = "auto:\(app)"
         let isNew = sessions[id] == nil
+        let existing = sessions[id]
+        let deck = existing?.customCredits == true ? existing.flatMap { session in
+            session.credits.map { CreditDeck(task: session.task ?? "Desktop control", credits: $0) }
+        } : nil
+        let selected = deck ?? pendingCredits
+        pendingCredits = nil
         sessions[id] = ControlSession(id: id, agent: app, owner: Self.automaticOwner,
-                                      expiresAt: now() + automaticLinger, uncertain: false)
+            expiresAt: now() + automaticLinger, uncertain: false, task: selected?.task,
+            credits: selected?.credits, customCredits: selected != nil, startedAt: existing?.startedAt ?? now())
         if isNew { changed?() }
         return true
     }
@@ -135,6 +170,7 @@ final class ControlState {
     }
 
     func handle(_ request: [String: Any]) -> [String: Any] {
+        expire() // Late generic renewals cannot resurrect a lost controller.
         do {
             let action = try string(request, "action")
             var didChange = false
@@ -151,14 +187,22 @@ final class ControlState {
                 if let existing = sessions[id], existing.owner != owner {
                     throw ControlError.invalid("Session belongs to another owner.")
                 }
+                let duration = try ttl(request)
+                let supplied = try Credits.parse(request)
+                let existing = sessions[id]
+                let preserved = existing?.customCredits == true && existing?.uncertain == false
+                    ? existing.flatMap { session in session.credits.map { CreditDeck(task: session.task ?? "Desktop control", credits: $0) } } : nil
+                let deck = supplied ?? preserved ?? pendingCredits ?? Credits.generate(task: request["credit_topic"] as? String ?? "Desktop control")
+                let custom = supplied != nil || preserved != nil || pendingCredits != nil
+                pendingCredits = nil
                 sessions[id] = ControlSession(id: id, agent: agent, owner: owner,
-                    expiresAt: now() + (try ttl(request)), uncertain: false)
+                    expiresAt: now() + duration, uncertain: false, task: deck.task, credits: deck.credits,
+                    customCredits: custom, startedAt: existing?.uncertain == false ? existing?.startedAt : now())
                 didChange = true
             case "keepalive":
                 let id = try string(request, "session_id")
-                if var session = sessions[id], !session.automatic {
+                if var session = sessions[id], !session.automatic && !session.uncertain {
                     session.expiresAt = now() + (try ttl(request))
-                    session.uncertain = false
                     sessions[id] = session
                     didChange = true
                 }
@@ -187,6 +231,31 @@ final class ControlState {
                       (0...1).contains(volume.doubleValue) else { throw ControlError.invalid("volume must be between 0 and 1.") }
                 preferences.volume = volume.floatValue
                 didChange = true
+            case "set_credits_enabled":
+                guard let value = request["enabled"] as? Bool else { throw ControlError.invalid("enabled must be true or false.") }
+                preferences.creditsEnabled = value
+                didChange = true
+            case "set_credits_layout":
+                guard let value = request["layout"] as? String, ["full", "corner"].contains(value) else {
+                    throw ControlError.invalid("layout must be full or corner.")
+                }
+                preferences.creditsLayout = value
+                didChange = true
+            case "set_credits":
+                guard let deck = try Credits.parse(request) else { throw ControlError.invalid("Provide a task or credits.") }
+                let ids: [String]
+                if request["session_id"] != nil {
+                    let id = try string(request, "session_id")
+                    guard let session = sessions[id], !session.uncertain else { throw ControlError.invalid("A live session is required.") }
+                    ids = [id]
+                } else { ids = sessions.values.filter { !$0.uncertain }.map { $0.id } }
+                if ids.isEmpty { pendingCredits = deck }
+                for id in ids {
+                    sessions[id]?.task = deck.task
+                    sessions[id]?.credits = deck.credits
+                    sessions[id]?.customCredits = true
+                }
+                didChange = true
             case "set_auto_detect":
                 guard let value = request["enabled"] as? Bool else { throw ControlError.invalid("enabled must be true or false.") }
                 preferences.autoDetect = value
@@ -202,6 +271,7 @@ final class ControlState {
                 didChange = true
             case "clear":
                 sessions.removeAll()
+                pendingCredits = nil
                 didChange = true
             case "status": break
             default: throw ControlError.invalid("Unknown action: \(action)")
@@ -220,6 +290,8 @@ final class ControlState {
         var result: [String: Any] = [
             "ok": true, "app": appName, "version": appVersion,
             "enabled": preferences.enabled, "volume": preferences.volume,
+            "credits_enabled": preferences.creditsEnabled, "credits_layout": preferences.creditsLayout,
+            "credits_task": currentCredits.task,
             "auto_detect": preferences.autoDetect, "ignored_apps": preferences.ignoredApps,
             "state": stateName,
             "sessions": sessions.values.sorted { $0.id < $1.id }.map {

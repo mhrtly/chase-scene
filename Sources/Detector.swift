@@ -3,10 +3,9 @@ import Darwin
 
 /// Notices when some *program* — not your hand on the mouse — moves or clicks the pointer.
 ///
-/// Computer-use agents drive the Mac by posting synthetic mouse events. macOS stamps every posted
-/// event with the process ID of the poster; events from real hardware carry 0. Watching mouse
-/// events through an NSEvent monitor needs no special permission, records nothing, and never
-/// blocks or changes the events themselves.
+/// Best-effort detection of posted mouse events carrying a nonzero source process ID.
+/// Ordinary utilities can also post events, and some control methods produce no observable event.
+/// The event monitor records no event content and never blocks or changes input.
 final class SyntheticInputDetector {
     /// System helpers that legitimately move the pointer for a person (accessibility features,
     /// Universal Control). Users can ignore anything else from the menu.
