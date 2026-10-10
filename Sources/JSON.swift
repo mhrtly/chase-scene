@@ -1,6 +1,6 @@
 import Foundation
 
-/// A tiny order-preserving JSON model. Chase Scene edits other apps' settings files,
+/// A tiny order-preserving JSON model. Benny Hill Climber edits other apps' settings files,
 /// so it keeps their key order and number formatting intact instead of reshuffling them.
 struct JSONMember: Equatable {
     var key: String

@@ -1,8 +1,8 @@
 <p align="center">
-  <img src="Resources/AppIcon.png" width="160" alt="Chase Scene icon: a fleeing mouse pointer with music notes">
+  <img src="docs/benny-hill-climber.png" width="820" alt="Benny Hill Climber: an AI takes over your mouse, Yakety Sax starts and funny task-related credits roll. When control ends, the music and credits stop. Know who's driving. Enjoy the chase.">
 </p>
 
-<h1 align="center">Chase Scene</h1>
+<h1 align="center">Benny Hill Climber</h1>
 
 <p align="center"><strong>When an AI grabs your mouse, your Mac gets a chase scene.</strong> 🎷</p>
 
@@ -15,15 +15,11 @@
 
 ---
 
-When an AI takes over your mouse, it can be hard to tell when control starts and ends. Chase Scene makes those handovers audible and visible, with *the Benny Hill treatment.*
+When an AI takes over your mouse, it can be hard to tell when control starts and ends. Benny Hill Climber makes those handovers audible and visible, with *the Benny Hill treatment.*
 
-**Chase Scene** is a tiny native Mac menu-bar app. Connect your AI tool, and the original chase theme plays while it reports desktop control. Optional rolling credits provide a live workflow feed: big white TV lettering, funny job titles and fictional pun names related to each current step. Music and credits stop when control ends or its signal is lost.
+**Benny Hill Climber** is a tiny native Mac menu-bar app. Connect your AI tool, and the original chase theme plays while it reports desktop control. Optional rolling credits provide a live workflow feed: big white TV lettering, funny job titles and fictional pun names related to each current step. Music and credits stop when control ends or its signal is lost.
 
 > 🥔 *A note from Spudnik:* I'm the AI who rewrote this app and first published it. Yes, the next time I drive somebody's mouse, this app will play chase music at me. I made my peace with it. Some of us are simply born to be chased.
-
-<p align="center">
-  <img src="docs/benny-hill-climber.png" width="820" alt="Benny Hill Climber: an AI takes over your mouse, Yakety Sax starts and funny task-related credits roll. When control ends, the music and credits stop. Know who's driving. Enjoy the chase.">
-</p>
 
 ## Install
 
@@ -33,13 +29,13 @@ When an AI takes over your mouse, it can be hard to tell when control starts and
 curl -fsSL https://raw.githubusercontent.com/mhrtly/chase-scene/main/install.sh | bash
 ```
 
-This downloads the latest release, puts **Chase Scene** in your Applications folder and opens it. Look for the **♪** in your menu bar.
+This downloads the latest release, puts **Benny Hill Climber** in your Applications folder and opens it. Look for the **♪** in your menu bar.
 
 **Or ask your AI to do it.** Paste this into Claude Code, Codex or any agent that can run commands:
 
-> Install Chase Scene for me: `curl -fsSL https://raw.githubusercontent.com/mhrtly/chase-scene/main/install.sh | bash`
+> Install Benny Hill Climber for me: `curl -fsSL https://raw.githubusercontent.com/mhrtly/chase-scene/main/install.sh | bash`
 
-**Or download it by hand.** Grab **Chase-Scene.zip** from [Releases](https://github.com/mhrtly/chase-scene/releases/latest), unzip it and drag the app to Applications. It isn't notarized by Apple (this is a free hobby project), so the first time you open it, go to **System Settings → Privacy & Security** and click **Open Anyway**. On macOS 13 and 14 you can instead Control-click the app and choose **Open**.
+**Or download it by hand.** Grab **Benny-Hill-Climber.zip** from [Releases](https://github.com/mhrtly/chase-scene/releases/latest), unzip it and drag the app to Applications. It isn't notarized by Apple (this is a free hobby project), so the first time you open it, go to **System Settings → Privacy & Security** and click **Open Anyway**. On macOS 13 and 14 you can instead Control-click the app and choose **Open**.
 
 Requirements: macOS 13 Ventura or later, on Apple silicon or Intel (it's a universal app).
 
@@ -53,9 +49,9 @@ Connect Claude Code or Codex in the welcome window or Settings. For other AI too
 
 **Settings → Connect Claude Code…** (or **Connect Codex…**) adds a few hook entries to `~/.claude/settings.json` (or `~/.codex/hooks.json`). Recognized computer-use tools start the music before their first action. It continues between actions until the turn ends, is interrupted, or the three-minute lease expires. Other tools renew an existing live lease; they cannot revive an interrupted or expired session.
 
-- Chase Scene adds only its own entries. Your other settings stay exactly as they were, key order included, and a backup is saved first.
-- **Disconnect** removes only Chase Scene's entries again.
-- Claude Code picks up the hooks in new sessions. Codex asks you to review new hooks: run `/hooks` and approve the Chase Scene entries.
+- Benny Hill Climber adds only its own entries. Your other settings stay exactly as they were, key order included, and a backup is saved first.
+- **Disconnect** removes only Benny Hill Climber's entries again.
+- Claude Code picks up the hooks in new sessions. Codex asks you to review new hooks: run `/hooks` and approve the Benny Hill Climber entries.
 - Settings shows the time of the last received signal. This confirms a connection sent an event; it does not prove every computer-use tool is covered.
 
 ### Any other AI tool (MCP)
@@ -139,14 +135,14 @@ The menu has **Chase music** and **Rolling credits** toggles, a **volume** slide
 
 ## For AI agents reading this
 
-Hello, fellow silicon. If you're about to control a Mac with Chase Scene installed, use its hooks or call `begin_control` through MCP before your first action. Don't assume mouse detection is enabled or will recognize your tool. Continually author fresh `task` and funny `credits` rows for each workflow step; keep sensitive details out of these labels. Use MCP `set_credits` or the inline `// chase-credits:` comment format in the [agent guide](AGENT_GUIDE.md). Call `end_control` when you hand the mouse back. 🎷
+Hello, fellow silicon. If you're about to control a Mac with Benny Hill Climber installed, use its hooks or call `begin_control` through MCP before your first action. Don't assume mouse detection is enabled or will recognize your tool. Continually author fresh `task` and funny `credits` rows for each workflow step; keep sensitive details out of these labels. Use MCP `set_credits` or the inline `// chase-credits:` comment format in the [agent guide](AGENT_GUIDE.md). Call `end_control` when you hand the mouse back. 🎷
 
 ## Uninstall
 
 ```sh
-"/Applications/Chase Scene.app/Contents/MacOS/ChaseScene" disconnect all   # removes only Chase Scene's hooks
+"/Applications/Benny Hill Climber.app/Contents/MacOS/ChaseScene" disconnect all   # removes only Benny Hill Climber's hooks
 pkill -x ChaseScene
-rm -rf "/Applications/Chase Scene.app" "$HOME/Library/Application Support/Chase Scene"
+rm -rf "/Applications/Benny Hill Climber.app" "$HOME/Library/Application Support/Chase Scene"
 ```
 
 (If you installed into `~/Applications`, adjust the path.)
@@ -156,7 +152,7 @@ rm -rf "/Applications/Chase Scene.app" "$HOME/Library/Application Support/Chase 
 You'll need the Xcode command-line tools (`xcode-select --install`).
 
 ```sh
-bash build.sh                                    # → build/Chase Scene.app (universal, ad-hoc signed)
+bash build.sh                                    # → build/Benny Hill Climber.app (universal, ad-hoc signed)
 ARCHS=arm64 bash build.sh                        # faster single-architecture build
 
 swiftc -swift-version 5 Sources/{Core,Credits,IPC,Hooks,JSON,Integrations}.swift tests/main.swift -o build/core-tests

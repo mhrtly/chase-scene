@@ -15,7 +15,7 @@ import time
 import unittest
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]
-BINARY = ROOT / 'build/Chase Scene.app/Contents/MacOS/ChaseScene'
+BINARY = ROOT / 'build/Benny Hill Climber.app/Contents/MacOS/ChaseScene'
 POSTER = ROOT / 'build/post-mouse'
 TEST_AUDIO = os.environ.get('CHASE_SCENE_TEST_AUDIO') == '1'
 
@@ -101,7 +101,7 @@ class RunningAppTests(unittest.TestCase):
 
     def test_cli_status_and_signal(self):
         status = json.loads(self.run_binary('status').stdout)
-        self.assertEqual(status['app'], 'Chase Scene')
+        self.assertEqual(status['app'], 'Benny Hill Climber')
         self.assertFalse(status['auto_detect'])
         begun = json.loads(self.run_binary('signal', json.dumps({'action': 'begin', 'session_id': 'cli', 'agent': 'My AI'})).stdout)
         self.assertEqual(begun['state'], 'controlling')

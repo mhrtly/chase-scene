@@ -1,7 +1,7 @@
 import Foundation
 
 /// One-click hook integrations for AI coding agents that can drive the desktop.
-/// Chase Scene only ever adds or removes its own entries; everything else in the file is preserved
+/// Benny Hill Climber only ever adds or removes its own entries; everything else in the file is preserved
 /// (including key order), and a backup is saved before each change.
 enum Client: String, CaseIterable {
     case claude, codex
@@ -30,7 +30,7 @@ enum Client: String, CaseIterable {
     var activationHint: String {
         self == .claude
             ? "Restart Claude Code (or start a new session) to activate."
-            : "In Codex, run /hooks and approve the Chase Scene entries, then start a new session."
+            : "In Codex, run /hooks and approve the Benny Hill Climber entries, then start a new session."
     }
 }
 
@@ -50,7 +50,7 @@ enum Integrations {
         let launcher = launcherURL(state: state)
         let target = (Bundle.main.executableURL ?? URL(fileURLWithPath: CommandLine.arguments[0])).resolvingSymlinksInPath()
         guard !target.path.contains("/AppTranslocation/") else {
-            throw ControlError.invalid("Move Chase Scene into your Applications folder, open it from there, then try again.")
+            throw ControlError.invalid("Move Benny Hill Climber into your Applications folder, open it from there, then try again.")
         }
         let fm = FileManager.default
         try fm.createDirectory(at: launcher.deletingLastPathComponent(), withIntermediateDirectories: true,
@@ -105,7 +105,7 @@ enum Integrations {
             keptEvents.append(JSONMember(key: event.key, value: .array(keptGroups)))
         }
         var result = document
-        // If only Chase Scene's hooks were there, leave no empty "hooks": {} behind.
+        // If only Benny Hill Climber's hooks were there, leave no empty "hooks": {} behind.
         result["hooks"] = keptEvents.isEmpty && removed > 0 ? nil : JSONValue.object(keptEvents)
         return (result, removed)
     }
@@ -185,7 +185,7 @@ enum Integrations {
         }
     }
 
-    /// Adds (or refreshes) Chase Scene's hook entries for one client.
+    /// Adds (or refreshes) Benny Hill Climber's hook entries for one client.
     static func connect(_ client: Client, home: URL = home(), state: URL = stateDirectory()) throws -> String {
         guard client.isInstalled(home: home) else {
             throw ControlError.invalid("\(client.displayName) doesn't seem to be installed (no \(client.configDirectory(home: home).path)).")
@@ -201,7 +201,7 @@ enum Integrations {
         return "Connected \(client.displayName). \(client.activationHint)"
     }
 
-    /// Removes only Chase Scene's entries, leaving everything else as it is.
+    /// Removes only Benny Hill Climber's entries, leaving everything else as it is.
     static func disconnect(_ client: Client, home: URL = home(), state: URL = stateDirectory()) throws -> String {
         let file = client.hooksFile(home: home)
         guard FileManager.default.fileExists(atPath: file.path) else { return "\(client.displayName) was not connected." }

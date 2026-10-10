@@ -1,9 +1,9 @@
 #!/bin/bash
-# Builds "build/Chase Scene.app": a universal (Apple silicon + Intel), ad-hoc signed menu-bar app.
+# Builds "build/Benny Hill Climber.app": a universal (Apple silicon + Intel), ad-hoc signed menu-bar app.
 # Needs the Xcode command-line tools (xcode-select --install). Set ARCHS="arm64" for a faster local build.
 set -euo pipefail
 root="$(cd "$(dirname "$0")" && pwd)"
-app="$root/build/Chase Scene.app"
+app="$root/build/Benny Hill Climber.app"
 cache="$root/build/module-cache"
 archs="${ARCHS:-arm64 x86_64}"
 

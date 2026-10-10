@@ -3,7 +3,7 @@
 # screenshots of the first-run welcome, the menu-bar icon during a chase, and the menus.
 set -uo pipefail
 root="$(cd "$(dirname "$0")/.." && pwd)"
-app="$root/build/Chase Scene.app/Contents/MacOS/ChaseScene"
+app="$root/build/Benny Hill Climber.app/Contents/MacOS/ChaseScene"
 agent="$root/build/demo-agent"
 out="$root/build/screenshots"
 mkdir -p "$out"

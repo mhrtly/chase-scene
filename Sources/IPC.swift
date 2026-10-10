@@ -1,6 +1,7 @@
 import Foundation
 import Darwin
 
+// Keep the bundle ID and private state path stable so existing connections and preferences survive the rename.
 let bundleIdentifier = "io.github.mhrtly.ChaseScene"
 
 func stateDirectory() -> URL {
@@ -72,7 +73,7 @@ func jsonLine(_ object: [String: Any]) -> Data {
     return data
 }
 
-let notRunningMessage = "Chase Scene is not running. Open it from your Applications folder."
+let notRunningMessage = "Benny Hill Climber is not running. Open it from your Applications folder."
 
 func sendRequest(_ request: [String: Any], directory: URL = stateDirectory()) throws -> [String: Any] {
     let fd = socket(AF_UNIX, SOCK_STREAM, 0)
@@ -111,7 +112,7 @@ func enclosingAppBundle() -> URL? {
 }
 
 /// Sends a request, opening the menu-bar app in the background first if needed.
-/// Respects the user's choice: after "Quit Chase Scene", AI tools don't reopen it.
+/// Respects the user's choice: after "Quit Benny Hill Climber", AI tools don't reopen it.
 func requestWithLaunch(_ request: [String: Any], launch: Bool = true) throws -> [String: Any] {
     if let result = try? sendRequest(request) { return result }
     let environment = ProcessInfo.processInfo.environment
@@ -129,7 +130,7 @@ func requestWithLaunch(_ request: [String: Any], launch: Bool = true) throws -> 
 /// Runs work on the main thread through the run loop's common modes, so requests are still
 /// answered while a menu is open or a dialog is up (DispatchQueue.main can stall in those cases).
 func onMainRunLoop(_ work: @escaping () -> [String: Any]) -> [String: Any] {
-    final class Box { var value: [String: Any] = ["ok": false, "error": "Chase Scene is busy; try again."] }
+    final class Box { var value: [String: Any] = ["ok": false, "error": "Benny Hill Climber is busy; try again."] }
     let box = Box()
     let done = DispatchSemaphore(value: 0)
     CFRunLoopPerformBlock(CFRunLoopGetMain(), CFRunLoopMode.commonModes.rawValue) {
@@ -159,7 +160,7 @@ final class IPCServer {
             attributes: [.posixPermissions: 0o700])
         lockFD = Darwin.open(directory.appendingPathComponent("app.lock").path, O_CREAT | O_RDWR, 0o600)
         guard lockFD >= 0, flock(lockFD, LOCK_EX | LOCK_NB) == 0 else {
-            throw ControlError.invalid("Chase Scene is already running.")
+            throw ControlError.invalid("Benny Hill Climber is already running.")
         }
         fd = socket(AF_UNIX, SOCK_STREAM, 0)
         guard fd >= 0 else { throw ControlError.invalid("Could not create socket.") }

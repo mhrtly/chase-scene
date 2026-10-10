@@ -1,13 +1,13 @@
 import AppKit
 
 let usage = """
-Chase Scene \(appVersion) — chase music whenever an AI drives your Mac.
+Benny Hill Climber \(appVersion) — chase music whenever an AI drives your Mac.
 Open the app normally to put it in your menu bar. Command-line modes:
 
   status                        Print music / control status as JSON
   signal '<JSON>'               Send a begin / keepalive / end event
-  connect claude|codex|all      Add Chase Scene's hooks to Claude Code and/or Codex
-  disconnect claude|codex|all   Remove only Chase Scene's hooks
+  connect claude|codex|all      Add Benny Hill Climber's hooks to Claude Code and/or Codex
+  disconnect claude|codex|all   Remove only Benny Hill Climber's hooks
   mcp                           Run the stdio MCP server (begin_control, end_control…)
   mcp-config                    Print an MCP client config snippet
   hook claude|codex             (used by hooks) read one hook event on stdin
@@ -81,6 +81,6 @@ do {
         }
     }
 } catch {
-    FileHandle.standardError.write(Data("Chase Scene: \(error)\n".utf8))
+    FileHandle.standardError.write(Data("Benny Hill Climber: \(error)\n".utf8))
     exit(1)
 }

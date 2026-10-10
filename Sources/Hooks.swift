@@ -8,7 +8,7 @@ struct HookAdapter {
     static let defaultPattern = "(?i)^(mcp__[^_]*(?:computer|desktop|cua|node_repl|playwright|browser|chrome)[^_]*__.*|mcp__(?:cua_repl|node_repl|computer_use|computer-use|chrome_devtools)__.*|computer|computer_use|mcp__[^_]+__computer.*)$"
 
     func isControlTool(_ name: String, input: [String: Any]) -> Bool {
-        // Chase Scene's own MCP tools must never trigger the chase.
+        // Benny Hill Climber's own MCP tools must never trigger the chase.
         if name.contains("chase-scene") || name.contains("chase_scene") || name.contains("desktop-control-music") || name.contains("desktop_control_music") { return false }
         var pattern = HookAdapter.defaultPattern
         if let data = try? Data(contentsOf: directory.appendingPathComponent("adapters.json")),
@@ -89,7 +89,7 @@ func runHook(client: String) {
         let failedBegin = request?["action"] as? String == "begin"
         let quit = Preferences.load(from: directory).quitByUser
         if failedBegin && !quit && shouldWarn(directory: directory) {
-            let message = "Chase Scene couldn't start its chase music: \(error)"
+            let message = "Benny Hill Climber couldn't start its chase music: \(error)"
             print(String(data: jsonLine(["systemMessage": message]), encoding: .utf8)!.trimmingCharacters(in: .newlines))
         } else {
             print("{}")

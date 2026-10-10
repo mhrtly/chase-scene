@@ -21,9 +21,9 @@ jobs:
       - name: Verify the app is installed and running
         run: |
           note() { local body="$2"; body="${body//'%'/'%25'}"; echo "::notice title=$1::${body//$'\n'/'%0A'}"; }
-          app="/Applications/Chase Scene.app"
-          [ -d "$app" ] || app="$HOME/Applications/Chase Scene.app"
-          note "Location" "$(ls -la "$(dirname "$app")" | grep -i chase)"
+          app="/Applications/Benny Hill Climber.app"
+          [ -d "$app" ] || app="$HOME/Applications/Benny Hill Climber.app"
+          note "Location" "$(ls -la "$(dirname "$app")" | grep -i "benny hill")"
           note "Signature" "$(codesign --verify --verbose "$app" 2>&1); xattrs: $(xattr -l "$app" 2>&1 | head -5)"
           note "Process" "$(pgrep -lf ChaseScene 2>&1)"
           status=""
@@ -34,3 +34,23 @@ jobs:
           note "Status" "$status"
           echo "$status" | python3 -c 'import json,sys; s=json.load(sys.stdin); assert s["ok"] and not s["playing"] and not s["credits_visible"] and not s["auto_detect"], s'
           note "Installer" "Installed $("$app/Contents/MacOS/ChaseScene" version) at $app and it is running"
+
+      - name: Verify upgrade from the previous app name
+        run: |
+          app="/Applications/Benny Hill Climber.app"
+          [ -d "$app" ] || app="$HOME/Applications/Benny Hill Climber.app"
+          legacy="$(dirname "$app")/Chase Scene.app"
+          "$app/Contents/MacOS/ChaseScene" signal '{"action":"set_enabled","enabled":false}' >/dev/null
+          "$app/Contents/MacOS/ChaseScene" signal '{"action":"set_volume","volume":0.07}' >/dev/null
+          pkill -x ChaseScene || true
+          sleep 1
+          mv "$app" "$legacy"
+          curl -fsSL "https://raw.githubusercontent.com/${{ github.repository }}/${{ github.event.release.tag_name || 'main' }}/install.sh" | bash
+          status=""
+          for i in $(seq 1 20); do
+            if status="$("$legacy/Contents/MacOS/ChaseScene" status 2>&1)"; then break; fi
+            sleep 1
+          done
+          [ -L "$legacy" ]
+          echo "$status" | python3 -c 'import json,sys; s=json.load(sys.stdin); assert s["app"] == "Benny Hill Climber" and not s["enabled"] and abs(s["volume"] - 0.07) < 0.001 and not s["playing"], s'
+          echo "::notice title=Rename upgrade::New app name, old connection path, and saved preferences verified"

@@ -57,7 +57,7 @@ final class ChaseSceneApp: NSObject, NSApplicationDelegate, NSMenuDelegate {
             if !String(describing: error).contains("already running") && !testMode {
                 NSApp.activate(ignoringOtherApps: true)
                 let alert = NSAlert()
-                alert.messageText = "Chase Scene could not start"
+                alert.messageText = "Benny Hill Climber could not start"
                 alert.informativeText = String(describing: error)
                 alert.runModal()
             }
@@ -149,8 +149,8 @@ final class ChaseSceneApp: NSObject, NSApplicationDelegate, NSMenuDelegate {
         button.attributedTitle = NSAttributedString(string: active && unknown ? " ?" : "",
             attributes: [.foregroundColor: NSColor.white])
         let who = state.sessions.values.map { $0.agent }.sorted().joined(separator: ", ")
-        button.toolTip = active ? (unknown ? "Chase Scene: control state unknown" : "Chase Scene: \(who) is driving")
-                                : "Chase Scene: waiting for control signals"
+        button.toolTip = active ? (unknown ? "Benny Hill Climber: control state unknown" : "Benny Hill Climber: \(who) is driving")
+                                : "Benny Hill Climber: waiting for control signals"
     }
 
     // MARK: Audio
@@ -278,7 +278,7 @@ final class ChaseSceneApp: NSObject, NSApplicationDelegate, NSMenuDelegate {
         menu.addItem(submenu("Settings", settingsItems()))
         if !sessions.isEmpty { menu.addItem(action("Clear indicator…", #selector(clearIndicator))) }
         menu.addItem(action("Help", #selector(showHelp)))
-        menu.addItem(action("Quit Chase Scene", #selector(quit)))
+        menu.addItem(action("Quit Benny Hill Climber", #selector(quit)))
     }
 
     func volumeItem() -> NSMenuItem {
@@ -496,10 +496,10 @@ final class ChaseSceneApp: NSObject, NSApplicationDelegate, NSMenuDelegate {
         let alert = NSAlert()
         alert.messageText = "Connect \(client.displayName)?"
         alert.informativeText = """
-        Chase Scene will add a few hook entries to \(client.hooksFile(home: Integrations.home()).path) so \(client.displayName) \
+        Benny Hill Climber will add a few hook entries to \(client.hooksFile(home: Integrations.home()).path) so \(client.displayName) \
         reports recognized computer-use tools. Music continues between actions until the turn ends, or the control signal is lost.
 
-        Only Chase Scene's own entries are added, everything else stays as it is, and a backup is saved first. \
+        Only Benny Hill Climber's own entries are added, everything else stays as it is, and a backup is saved first. \
         You can disconnect any time from this menu.
         """
         alert.addButton(withTitle: "Connect")
@@ -521,7 +521,7 @@ final class ChaseSceneApp: NSObject, NSApplicationDelegate, NSMenuDelegate {
         NSPasteboard.general.setString(Integrations.mcpConfig(state: state.directory), forType: .string)
         inform("MCP config copied", """
         Paste it into your AI tool's MCP settings. The AI can then call begin_control before it drives your Mac \
-        and end_control when it's done.\(launcher == nil ? "\n\nTip: move Chase Scene into your Applications folder first." : "")
+        and end_control when it's done.\(launcher == nil ? "\n\nTip: move Benny Hill Climber into your Applications folder first." : "")
         """)
     }
 
@@ -560,16 +560,16 @@ final class ChaseSceneApp: NSObject, NSApplicationDelegate, NSMenuDelegate {
     func showWelcome() {
         NSApp.activate(ignoringOtherApps: true)
         let alert = NSAlert()
-        alert.messageText = "Chase Scene is on duty"
+        alert.messageText = "Benny Hill Climber is on duty"
         alert.informativeText = """
         Connect your AI tool below (or use MCP in Settings). When it reports desktop control, the original chase theme plays. \
         Turn on Rolling credits in the menu for fuzzy TV lettering and fictional task-related puns.
 
-        Chase Scene lives in your menu bar: look for the ♪. That's where you mute it, change the volume or pick your own song.
+        Benny Hill Climber lives in your menu bar: look for the ♪. That's where you mute it, change the volume or pick your own song.
 
         It only listens. It never controls anything, and nothing leaves your Mac.
         """
-        let login = NSButton(checkboxWithTitle: "Open Chase Scene when I log in", target: nil, action: nil)
+        let login = NSButton(checkboxWithTitle: "Open Benny Hill Climber when I log in", target: nil, action: nil)
         login.state = .on
         let roll = NSButton(checkboxWithTitle: "Show rolling credits during desktop control", target: nil, action: nil)
         roll.state = state.preferences.creditsEnabled ? .on : .off
