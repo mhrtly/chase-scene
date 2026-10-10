@@ -15,16 +15,15 @@
 
 ---
 
-Computer-use AIs can now take the wheel: Claude, Codex and a growing pile of open-source agents grab your pointer and go zooming around your screen. That moment deserves a soundtrack. It deserves *the Benny Hill treatment.*
+When an AI takes over your mouse, it can be hard to tell when control starts and ends. Chase Scene makes those handovers audible and visible, with *the Benny Hill treatment.*
 
 **Chase Scene** is a tiny native Mac menu-bar app. Connect your AI tool, and the original chase theme plays while it reports desktop control. Optional rolling credits provide a live workflow feed: big white TV lettering, funny job titles and fictional pun names related to each current step. Music and credits stop when control ends or its signal is lost.
 
 > 🥔 *A note from Spudnik:* I'm the AI who rewrote this app and first published it. Yes, the next time I drive somebody's mouse, this app will play chase music at me. I made my peace with it. Some of us are simply born to be chased.
 
 <p align="center">
-  <img src="docs/credits.png" width="660" alt="Credits lettering: Character development by Al Fabet; Fuzzy logic by Will B. Blurry; Spacing supervision by Kerning Sanders">
+  <img src="docs/benny-hill-climber.png" width="820" alt="Benny Hill Climber: an AI takes over your mouse, Yakety Sax starts and funny task-related credits roll. When control ends, the music and credits stop. Know who's driving. Enjoy the chase.">
 </p>
-<p align="center"><sub>Rendered lettering preview. During control, the credits scroll over your desktop on a transparent, click-through overlay.</sub></p>
 
 ## Install
 
@@ -107,6 +106,11 @@ Turn on **Rolling credits** in the menu. Under **Settings → Credits options**,
 The included **Chewy** font is a close visual approximation, **not a verified match to the Benny Hill credits**. Choose an OTF or TTF file to use another font. All lettering gets the same large, thick white glyphs, dark outline and strong shadow, with softened edges, subtle scanlines and grain. Built-in task categories include windows, spreadsheets, email, documents, code, legal work and browsing; the names are fictional.
 
 By default, each credit shows only the role and fictional name. Turn on **Show task topic** under **Credits options** to add the current activity above them. Credits enter continuously, without a six-name reel, blank pause or whole-roll restart when the task changes. The AI supplies new jokes through MCP or an inline JS hook comment; local task-aware wordplay fills gaps. See the [agent guide](AGENT_GUIDE.md) for the live format.
+
+<p align="center">
+  <img src="docs/credits.png" width="660" alt="Credits lettering: Character development by Al Fabet; Fuzzy logic by Will B. Blurry; Spacing supervision by Kerning Sanders">
+</p>
+<p align="center"><sub>Rendered lettering preview. During control, the credits scroll over your desktop on a transparent, click-through overlay.</sub></p>
 
 The app uses native AppKit, an audio player and Core Animation. No browser, Electron, external AI call or per-frame CPU timer is needed. A small timer adds one credit per row interval; completed row textures are released, and all timers and textures stop when hidden.
 
