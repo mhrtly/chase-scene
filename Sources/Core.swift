@@ -1,7 +1,7 @@
 import Foundation
 
 let appName = "Chase Scene"
-let appVersion = "1.2.0"
+let appVersion = "1.2.1"
 
 struct ControlSession: Codable {
     let id: String
@@ -29,6 +29,7 @@ struct Preferences: Codable {
     var lastSignal: [String: Double] = [:]
     var creditsEnabled = false
     var creditsLayout = "full"
+    var creditsShowTopic = false
     var creditsFontName: String? = nil
     var creditsFontPath: String? = nil
 
@@ -47,6 +48,7 @@ struct Preferences: Codable {
         lastSignal = (try? c.decodeIfPresent([String: Double].self, forKey: .lastSignal)) ?? [:]
         creditsEnabled = (try? c.decodeIfPresent(Bool.self, forKey: .creditsEnabled)) ?? false
         creditsLayout = (try? c.decodeIfPresent(String.self, forKey: .creditsLayout)) == "corner" ? "corner" : "full"
+        creditsShowTopic = (try? c.decodeIfPresent(Bool.self, forKey: .creditsShowTopic)) ?? false
         creditsFontName = try? c.decodeIfPresent(String.self, forKey: .creditsFontName)
         creditsFontPath = try? c.decodeIfPresent(String.self, forKey: .creditsFontPath)
     }
@@ -241,6 +243,10 @@ final class ControlState {
                 }
                 preferences.creditsLayout = value
                 didChange = true
+            case "set_credits_show_topic":
+                guard let value = request["enabled"] as? Bool else { throw ControlError.invalid("enabled must be true or false.") }
+                preferences.creditsShowTopic = value
+                didChange = true
             case "set_credits":
                 guard let deck = try Credits.parse(request) else { throw ControlError.invalid("Provide a task or credits.") }
                 let ids: [String]
@@ -291,6 +297,7 @@ final class ControlState {
             "ok": true, "app": appName, "version": appVersion,
             "enabled": preferences.enabled, "volume": preferences.volume,
             "credits_enabled": preferences.creditsEnabled, "credits_layout": preferences.creditsLayout,
+            "credits_show_topic": preferences.creditsShowTopic,
             "credits_task": currentCredits.task,
             "auto_detect": preferences.autoDetect, "ignored_apps": preferences.ignoredApps,
             "state": stateName,

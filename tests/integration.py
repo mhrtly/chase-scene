@@ -107,7 +107,7 @@ class RunningAppTests(unittest.TestCase):
         self.assertEqual(begun['state'], 'controlling')
         self.run_binary('signal', json.dumps({'action': 'end', 'session_id': 'cli'}))
         self.assertEqual(self.send({'action': 'status'})['state'], 'idle')
-        self.assertEqual(self.run_binary('version').stdout.strip(), '1.2.0')
+        self.assertEqual(self.run_binary('version').stdout.strip(), status['version'])
 
     def test_parallel_sessions_and_owner_isolation(self):
         def begin(i):
@@ -247,7 +247,7 @@ class RunningAppTests(unittest.TestCase):
             status = self.send({'action': 'status'})
             self.assertTrue(status['credits_scrolling'])
             self.assertGreater(status['credits_active_rows'], 0)
-            self.assertLessEqual(status['credits_active_rows'], 6)
+            self.assertLessEqual(status['credits_active_rows'], 7)
             self.assertEqual(status['credits_scroll_id'], scroll_id)
             seen.add(status['credits_last_name'])
             if status['credits_rows_emitted'] > 7:

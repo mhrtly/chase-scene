@@ -102,11 +102,11 @@ Spudnik's **Hot Potato Hustle** is also bundled as an optional alternative under
 
 ## Rolling credits
 
-Turn on **Rolling credits** in the menu. Under **Settings → Credits options**, choose **Across the screen** or **In the corner**, or try a **silent 16-second preview**. Credits work independently of the music toggle. The overlay doesn't take focus or intercept clicks.
+Turn on **Rolling credits** in the menu. Under **Settings → Credits options**, the default is **Full screen (centered)** with large lettering. Choose **In the corner** if you prefer a smaller overlay, or try a **silent 16-second preview**. Credits work independently of the music toggle. The overlay doesn't take focus or intercept clicks.
 
 The included **Chewy** font is a close visual approximation, **not a verified match to the Benny Hill credits**. Choose an OTF or TTF file to use another font. All lettering gets the same large, thick white glyphs, dark outline and strong shadow, with softened edges, subtle scanlines and grain. Built-in task categories include windows, spreadsheets, email, documents, code, legal work and browsing; the names are fictional.
 
-Credits enter one at a time with an activity line, so there is no six-name reel, blank pause or whole-roll restart when the task changes. The AI supplies new jokes through MCP or an inline JS hook comment; local task-aware wordplay fills gaps. See the [agent guide](AGENT_GUIDE.md) for the live format.
+By default, each credit shows only the role and fictional name. Turn on **Show task topic** under **Credits options** to add the current activity above them. Credits enter continuously, without a six-name reel, blank pause or whole-roll restart when the task changes. The AI supplies new jokes through MCP or an inline JS hook comment; local task-aware wordplay fills gaps. See the [agent guide](AGENT_GUIDE.md) for the live format.
 
 The app uses native AppKit, an audio player and Core Animation. No browser, Electron, external AI call or per-frame CPU timer is needed. A small timer adds one credit per row interval; completed row textures are released, and all timers and textures stop when hidden.
 
@@ -121,8 +121,8 @@ Automatic sessions end about 20 seconds after the last detected input. Use **Not
 | Icon | Meaning |
 | --- | --- |
 | ♪ | Idle, waiting for control signals |
-| 🏃 green | An AI (or other software) is driving |
-| 🏃 orange **?** | A connected AI tool stopped reporting or was interrupted. Music and credits stop; the warning stays until the session is cleared or explicitly restarted. |
+| 🏃 white | An AI (or other software) is driving |
+| 🏃 white **?** | A connected AI tool stopped reporting or was interrupted. Music and credits stop; the warning stays until the session is cleared or explicitly restarted. |
 
 The menu has **Chase music** and **Rolling credits** toggles, a **volume** slider, a music preview, and **Settings**. Settings contains credits options, song choices, AI connections, optional software input detection, ignored apps, and Open at login.
 

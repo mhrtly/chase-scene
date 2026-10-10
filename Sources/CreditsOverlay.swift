@@ -21,7 +21,7 @@ enum CreditsPainter {
         let corner = preferences.creditsLayout == "corner"
         let name: CGFloat = corner ? 57 : max(112, min(180, width * 0.074))
         let role: CGFloat = corner ? 30 : max(42, min(64, width * 0.028))
-        let activity: CGFloat = corner ? 18 : 27
+        let activity: CGFloat = preferences.creditsShowTopic ? (corner ? 18 : 27) : 0
         return (name, role, activity, name * 1.24 + role * 1.28 + activity * 1.2 + (corner ? 32 : 46))
     }
 
@@ -41,8 +41,10 @@ enum CreditsPainter {
         graphics.cgContext.scaleBy(x: scale, y: scale)
         for (index, credit) in deck.credits.enumerated() {
             let top = height - 16 - CGFloat(index) * style.height
-            draw("Now: " + deck.task, y: top - style.activity * 1.15, size: style.activity,
-                 width: width, preferences: preferences, caps: false)
+            if preferences.creditsShowTopic {
+                draw("Now: " + deck.task, y: top - style.activity * 1.15, size: style.activity,
+                     width: width, preferences: preferences, caps: false)
+            }
             draw(credit.role, y: top - style.activity * 1.25 - style.role * 1.22, size: style.role,
                  width: width, preferences: preferences, caps: false)
             draw(credit.name.uppercased(), y: top - style.activity * 1.25 - style.role * 1.3 - style.name * 1.22,
@@ -151,7 +153,7 @@ final class CreditRollView: NSView {
     func configure(deck: CreditDeck, preferences: Preferences) {
         stream.update(deck)
         setAccessibilityLabel("Fictional rolling credits for \(deck.task)")
-        let appearance = "\(bounds.width):\(bounds.height):\(preferences.creditsLayout):\(preferences.creditsFontName ?? "Chewy-Regular"):\(preferences.creditsFontPath ?? "")"
+        let appearance = "\(bounds.width):\(bounds.height):\(preferences.creditsLayout):\(preferences.creditsShowTopic):\(preferences.creditsFontName ?? "Chewy-Regular"):\(preferences.creditsFontPath ?? "")"
         guard renderKey != appearance || rowTimer == nil else { return }
         stop()
         self.preferences = preferences

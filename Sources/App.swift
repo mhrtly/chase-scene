@@ -140,17 +140,14 @@ final class ChaseSceneApp: NSObject, NSApplicationDelegate, NSMenuDelegate {
         let unknown = state.sessions.values.contains { $0.uncertain }
         var image = NSImage(systemSymbolName: active ? "figure.run" : "music.note", accessibilityDescription: appName)
             ?? NSImage(systemSymbolName: active ? "cursorarrow.rays" : "music.note", accessibilityDescription: appName)
-        if active {
-            // Status-bar buttons ignore tint on template images, so color the symbol itself.
-            let color: NSColor = unknown ? .systemOrange : .systemGreen
-            image = image?.withSymbolConfiguration(NSImage.SymbolConfiguration(paletteColors: [color]))
-            image?.isTemplate = false
-        } else {
-            image?.isTemplate = true
-        }
+        // Color the symbol itself: menu-bar buttons can ignore tint on template images.
+        image = image?.withSymbolConfiguration(NSImage.SymbolConfiguration(paletteColors: [.white]))
+        image?.isTemplate = false
         button.image = image
+        button.contentTintColor = .white
         button.imagePosition = .imageLeft
-        button.title = active && unknown ? " ?" : ""
+        button.attributedTitle = NSAttributedString(string: active && unknown ? " ?" : "",
+            attributes: [.foregroundColor: NSColor.white])
         let who = state.sessions.values.map { $0.agent }.sorted().joined(separator: ", ")
         button.toolTip = active ? (unknown ? "Chase Scene: control state unknown" : "Chase Scene: \(who) is driving")
                                 : "Chase Scene: waiting for control signals"
@@ -348,12 +345,16 @@ final class ChaseSceneApp: NSObject, NSApplicationDelegate, NSMenuDelegate {
         var items = [action("Preview credits (silent, 16 seconds)", #selector(previewCredits))]
         if credits.previewing { items.append(action("Stop preview", #selector(stopCreditsPreview))) }
         items.append(.separator())
-        let full = action("Across the screen", #selector(fullCredits))
+        let full = action("Full screen (centered)", #selector(fullCredits))
         full.state = state.preferences.creditsLayout == "full" ? .on : .off
         items.append(full)
         let corner = action("In the corner", #selector(cornerCredits))
         corner.state = state.preferences.creditsLayout == "corner" ? .on : .off
         items.append(corner)
+        items.append(.separator())
+        let topic = action("Show task topic", #selector(toggleCreditsTopic))
+        topic.state = state.preferences.creditsShowTopic ? .on : .off
+        items.append(topic)
         items.append(.separator())
         items.append(label("Font: \(state.preferences.creditsFontName ?? "Chewy")"))
         items.append(action("Choose font file…", #selector(chooseCreditsFont)))
@@ -387,6 +388,10 @@ final class ChaseSceneApp: NSObject, NSApplicationDelegate, NSMenuDelegate {
     @objc func cornerCredits() {
         credits.stopPreview()
         _ = state.handle(["action": "set_credits_layout", "layout": "corner"])
+    }
+    @objc func toggleCreditsTopic() {
+        credits.stopPreview()
+        _ = state.handle(["action": "set_credits_show_topic", "enabled": !state.preferences.creditsShowTopic])
     }
     @objc func resetCreditsFont() {
         state.preferences.creditsFontName = nil

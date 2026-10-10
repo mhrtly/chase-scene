@@ -1,13 +1,12 @@
-Chase Scene 1.2.0 makes credits easier to read and turns them into a continuous workflow feed.
+Chase Scene 1.2.1 restores the classic role-and-name credit layout by default.
 
-- Much larger, heavier white lettering, with a thick dark outline and stronger shadow. The fuzzy television texture remains.
-- Credits enter one at a time, with an activity line. There is no fixed six-name reel or empty pause between loops.
-- New task updates replace only unused credits; visible rows keep moving.
-- The controlling AI can continually author fresh fictional roles and pun names through MCP `set_credits`, or put a `// chase-credits:` JSON comment alongside each JS desktop action. No extra tool call is needed for the hook format.
-- Local task-aware wordplay fills gaps between AI updates; the app makes no external inference calls.
-- Completed row textures are released, and the feed stops when control ends or its signal is lost.
+- Hides the task topic above each credit by default, including on upgrade.
+- Adds **Show task topic** under **Settings → Credits options** for anyone who wants the activity line.
+- Uses **Full screen (centered)** as the default layout, with the same large, bright, heavily shadowed lettering. The corner layout remains available.
+- Renders the menu-bar symbol in white for clear visibility.
+- Keeps the continuous feed of fresh AI-authored roles and pun names. Task context still guides the jokes when the topic line is hidden.
 
-The original `mouse_control_theme.mp3` is still the bundled default. Chewy remains an approximation of the television lettering; custom OTF/TTF fonts are supported.
+The original `mouse_control_theme.mp3` remains the bundled default audio.
 
 Install or update:
 
@@ -15,4 +14,4 @@ Install or update:
 curl -fsSL https://raw.githubusercontent.com/mhrtly/chase-scene/main/install.sh | bash
 ```
 
-Or download **Chase-Scene.zip** below. Universal native app for macOS 13+ (Apple silicon and Intel), ad-hoc signed. For manual downloads, macOS may require **Privacy & Security → Open Anyway** on first launch. See the [README](https://github.com/mhrtly/chase-scene#readme) and [agent guide](https://github.com/mhrtly/chase-scene/blob/main/AGENT_GUIDE.md).
+Or download **Chase-Scene.zip** below. Universal native app for macOS 13+ (Apple silicon and Intel). See the [README](https://github.com/mhrtly/chase-scene#readme) and [agent guide](https://github.com/mhrtly/chase-scene/blob/main/AGENT_GUIDE.md).

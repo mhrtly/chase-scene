@@ -36,6 +36,6 @@ For tools without a JS `code` input, use MCP `set_credits` or the equivalent loc
 
 ## What happens on screen
 
-Large white letters have a thick dark outline and shadow, while keeping the fuzzy television texture. Each credit includes a short activity line. New updates replace unused rows, while visible credits keep scrolling; the next new row enters within one row interval, usually a few seconds.
+Large white letters have a thick dark outline and shadow, while keeping the fuzzy television texture. The default is large, centered, full-screen lettering with only the role and name. The user can turn on **Show task topic** to include the current activity above them; agents should keep sending accurate task context whether the line is visible or hidden. New updates replace unused rows, while visible credits keep scrolling; the next new row enters within one row interval, usually a few seconds.
 
 The app supplies local, task-aware wordplay between AI updates. Those gap fillers are templates, not another AI inference call. The app cannot invent an agent's actual intent from an unlabeled click; the controlling AI supplies that context. Music and credits remain tied to a live control signal. Metadata never begins control by itself.
