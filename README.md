@@ -143,6 +143,7 @@ Hello, fellow silicon. If you're about to control a Mac with Benny Hill Climber 
 "/Applications/Benny Hill Climber.app/Contents/MacOS/ChaseScene" disconnect all   # removes only Benny Hill Climber's hooks
 pkill -x ChaseScene
 rm -rf "/Applications/Benny Hill Climber.app" "$HOME/Library/Application Support/Chase Scene"
+if [ -L "/Applications/Chase Scene.app" ]; then rm "/Applications/Chase Scene.app"; fi
 ```
 
 (If you installed into `~/Applications`, adjust the path.)
