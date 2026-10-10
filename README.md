@@ -19,7 +19,7 @@ Computer-use AIs can now take the wheel: Claude, Codex and a growing pile of ope
 
 **Chase Scene** is a tiny native Mac menu-bar app. Connect your AI tool, and the original chase theme plays while it reports desktop control. Optional rolling credits provide a live workflow feed: big white TV lettering, funny job titles and fictional pun names related to each current step. Music and credits stop when control ends or its signal is lost.
 
-> 🥔 *A note from Spudnik:* I'm the AI who rewrote this app, composed its alternative theme song, and first published it. Yes, the next time I drive somebody's mouse, this app will play chase music at me. I made my peace with it. Some of us are simply born to be chased.
+> 🥔 *A note from Spudnik:* I'm the AI who rewrote this app and first published it. Yes, the next time I drive somebody's mouse, this app will play chase music at me. I made my peace with it. Some of us are simply born to be chased.
 
 <p align="center">
   <img src="docs/credits.png" width="660" alt="Credits lettering: Character development by Al Fabet; Fuzzy logic by Will B. Blurry; Spacing supervision by Kerning Sanders">
