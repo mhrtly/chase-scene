@@ -89,7 +89,15 @@ final class ChaseSceneApp: NSObject, NSApplicationDelegate, NSMenuDelegate {
         updateDetector()
         if !testMode {
             _ = try? Integrations.refreshLauncher(state: state.directory)
-            let statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
+            let statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.squareLength)
+            // Start beside the system items, avoiding the overflow area at the far left.
+            // Preserve any position the user subsequently chooses with Command-drag.
+            let positionKey = "NSStatusItem Preferred Position BennyHillClimber"
+            if UserDefaults.standard.object(forKey: positionKey) == nil {
+                UserDefaults.standard.set(0.0, forKey: positionKey)
+            }
+            statusItem.autosaveName = "BennyHillClimber"
+            statusItem.isVisible = true
             let menu = NSMenu()
             menu.delegate = self
             statusItem.menu = menu
@@ -138,16 +146,19 @@ final class ChaseSceneApp: NSObject, NSApplicationDelegate, NSMenuDelegate {
         guard let button = item?.button else { return }
         let active = !state.sessions.isEmpty
         let unknown = state.sessions.values.contains { $0.uncertain }
-        var image = NSImage(systemSymbolName: active ? "figure.run" : "music.note", accessibilityDescription: appName)
-            ?? NSImage(systemSymbolName: active ? "cursorarrow.rays" : "music.note", accessibilityDescription: appName)
-        // Color the symbol itself: menu-bar buttons can ignore tint on template images.
-        image = image?.withSymbolConfiguration(NSImage.SymbolConfiguration(paletteColors: [.white]))
-        image?.isTemplate = false
+        let symbol = unknown ? "questionmark.circle" : (active ? "figure.run" : "music.note")
+        let image = (NSImage(systemSymbolName: symbol, accessibilityDescription: appName)
+            ?? NSImage(systemSymbolName: active ? "cursorarrow.rays" : "music.note", accessibilityDescription: appName))?
+            .withSymbolConfiguration(NSImage.SymbolConfiguration(pointSize: 16, weight: .semibold))
+        // A template follows the menu bar's foreground color, including white on dark backgrounds.
+        // Forcing white pixels bypasses contrast adjustment and can make the icon disappear.
+        image?.isTemplate = true
         button.image = image
-        button.contentTintColor = .white
-        button.imagePosition = .imageLeft
-        button.attributedTitle = NSAttributedString(string: active && unknown ? " ?" : "",
-            attributes: [.foregroundColor: NSColor.white])
+        button.contentTintColor = nil
+        button.imagePosition = image == nil ? .noImage : .imageOnly
+        button.title = image == nil ? "BH" : ""
+        button.setAccessibilityLabel(appName)
+        button.setAccessibilityIdentifier("benny-hill-climber.status")
         let who = state.sessions.values.map { $0.agent }.sorted().joined(separator: ", ")
         button.toolTip = active ? (unknown ? "Benny Hill Climber: control state unknown" : "Benny Hill Climber: \(who) is driving")
                                 : "Benny Hill Climber: waiting for control signals"

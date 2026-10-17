@@ -1,7 +1,7 @@
 import Foundation
 
 let appName = "Benny Hill Climber"
-let appVersion = "1.3.0"
+let appVersion = "1.3.1"
 
 struct ControlSession: Codable {
     let id: String

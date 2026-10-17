@@ -121,8 +121,10 @@ Automatic sessions end about 20 seconds after the last detected input. Use **Not
 | Icon | Meaning |
 | --- | --- |
 | ♪ | Idle, waiting for control signals |
-| 🏃 white | An AI (or other software) is driving |
-| 🏃 white **?** | A connected AI tool stopped reporting or was interrupted. Music and credits stop; the warning stays until the session is cleared or explicitly restarted. |
+| Running figure | An AI (or other software) is driving |
+| Circled question mark | A connected AI tool stopped reporting or was interrupted. Music and credits stop; the warning stays until the session is cleared or explicitly restarted. |
+
+The compact icon matches the other menu-bar icons: white on a dark bar, with automatic contrast on a light bar. It starts near the system icons so a crowded menu bar is less likely to hide it. Its position is remembered if you hold Command and drag it elsewhere in the menu bar.
 
 The menu has **Chase music** and **Rolling credits** toggles, a **volume** slider, a music preview, and **Settings**. Settings contains credits options, song choices, AI connections, optional software input detection, ignored apps, and Open at login.
 
