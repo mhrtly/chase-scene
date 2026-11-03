@@ -91,13 +91,15 @@ final class ChaseSceneApp: NSObject, NSApplicationDelegate, NSMenuDelegate {
         if !testMode {
             _ = try? Integrations.refreshLauncher(state: state.directory)
             let statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.squareLength)
-            // Start beside the system items, avoiding the overflow area at the far left.
-            // Preserve any position the user subsequently chooses with Command-drag.
-            let positionKey = "NSStatusItem Preferred Position BennyHillClimber"
-            if UserDefaults.standard.object(forKey: positionKey) == nil {
-                UserDefaults.standard.set(0.0, forKey: positionKey)
+            // Let macOS place the icon itself. Earlier versions forced a saved position of 0, which can
+            // park the item underneath the system icons where it is invisible; forget that value and
+            // start fresh under a new autosave name. Command-drag positions are still remembered.
+            for old in ["BennyHillClimber"] {
+                UserDefaults.standard.removeObject(forKey: "NSStatusItem Preferred Position \(old)")
+                UserDefaults.standard.removeObject(forKey: "NSStatusItem Visible \(old)")
             }
-            statusItem.autosaveName = "BennyHillClimber"
+            statusItem.autosaveName = "BennyHillClimberIcon"
+            statusItem.behavior = []          // can't be dragged out (removed) by accident
             statusItem.isVisible = true
             let menu = NSMenu()
             menu.delegate = self
