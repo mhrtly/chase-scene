@@ -371,5 +371,31 @@ class RunningAppTests(unittest.TestCase):
         self.send({'action': 'unignore_app', 'app': 'post-mouse'})
 
 
+class QuitTests(unittest.TestCase):
+    def test_sigterm_counts_as_quit_and_hooks_do_not_relaunch(self):
+        with tempfile.TemporaryDirectory(prefix='chase-quit-', dir='/private/tmp') as folder:
+            state = pathlib.Path(folder) / 'state'
+            env = dict(os.environ, CHASE_SCENE_STATE_DIR=str(state), CHASE_SCENE_HOME=folder)
+            app = subprocess.Popen([str(BINARY), '--test-mode'], env=env,
+                                   stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+            for _ in range(100):
+                if (state / 'control.sock').exists():
+                    break
+                time.sleep(.05)
+            time.sleep(.3)
+            app.terminate()                       # what Activity Monitor's Quit and pkill send
+            self.assertEqual(app.wait(timeout=5), 0)
+            prefs = json.loads((state / 'preferences.json').read_text())
+            self.assertTrue(prefs['quitByUser'])
+            # A control-starting hook must not bring it back.
+            event = {'session_id': 's', 'hook_event_name': 'PreToolUse', 'tool_name': 'mcp__computer-use__left_click'}
+            result = subprocess.run([str(BINARY), 'hook', 'claude'], input=json.dumps(event),
+                                    capture_output=True, text=True, env=env, timeout=20)
+            self.assertEqual(json.loads(result.stdout), {})
+            time.sleep(1)
+            with socket.socket(socket.AF_UNIX, socket.SOCK_STREAM) as sock:
+                self.assertNotEqual(sock.connect_ex(str(state / 'control.sock')), 0, 'app was relaunched')
+
+
 if __name__ == '__main__':
     unittest.main(verbosity=2)
