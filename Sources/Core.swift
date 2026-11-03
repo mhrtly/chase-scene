@@ -1,7 +1,7 @@
 import Foundation
 
 let appName = "Benny Hill Climber"
-let appVersion = "1.3.1"
+let appVersion = "1.4.0"
 
 struct ControlSession: Codable {
     let id: String
@@ -26,6 +26,9 @@ struct Preferences: Codable {
     var ignoredApps: [String] = []
     var welcomed = false
     var quitByUser = false
+    /// Opt-in: let AI hooks / MCP open the app when it is not running.
+    var launchFromAI = false
+    var hiddenIconNoticeShown = false
     var lastSignal: [String: Double] = [:]
     var creditsEnabled = false
     var creditsLayout = "full"
@@ -45,6 +48,8 @@ struct Preferences: Codable {
         ignoredApps = (try? c.decodeIfPresent([String].self, forKey: .ignoredApps)) ?? []
         welcomed = (try? c.decodeIfPresent(Bool.self, forKey: .welcomed)) ?? false
         quitByUser = (try? c.decodeIfPresent(Bool.self, forKey: .quitByUser)) ?? false
+        launchFromAI = (try? c.decodeIfPresent(Bool.self, forKey: .launchFromAI)) ?? false
+        hiddenIconNoticeShown = (try? c.decodeIfPresent(Bool.self, forKey: .hiddenIconNoticeShown)) ?? false
         lastSignal = (try? c.decodeIfPresent([String: Double].self, forKey: .lastSignal)) ?? [:]
         creditsEnabled = (try? c.decodeIfPresent(Bool.self, forKey: .creditsEnabled)) ?? false
         creditsLayout = (try? c.decodeIfPresent(String.self, forKey: .creditsLayout)) == "corner" ? "corner" : "full"

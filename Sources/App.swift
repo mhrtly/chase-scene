@@ -18,6 +18,7 @@ final class ChaseSceneApp: NSObject, NSApplicationDelegate, NSMenuDelegate {
     var timerInterval: TimeInterval = 0
     var pausedAt: Date?
     var didStart = false
+    var termSource: DispatchSourceSignal?
 
     static let builtInSongName = "Original chase theme"
 
@@ -103,11 +104,60 @@ final class ChaseSceneApp: NSObject, NSApplicationDelegate, NSMenuDelegate {
             statusItem.menu = menu
             item = statusItem
         }
+        // Quitting from Activity Monitor (SIGTERM) counts as "quit", same as the menu item.
+        signal(SIGTERM, SIG_IGN)
+        let source = DispatchSource.makeSignalSource(signal: SIGTERM, queue: .main)
+        source.setEventHandler { [weak self] in self?.quit() }
+        source.resume()
+        termSource = source
         refresh()
+        if !testMode {
+            _ = Timer.scheduledTimer(withTimeInterval: 3, repeats: false) { [weak self] _ in self?.checkIconVisible() }
+        }
         if !testMode && !state.preferences.welcomed {
             // A timer (not a GCD block) so the modal welcome never stalls the main queue.
             _ = Timer.scheduledTimer(withTimeInterval: 0.3, repeats: false) { [weak self] _ in self?.showWelcome() }
         }
+    }
+
+    /// Opening the app again (Spotlight, Finder, Launchpad) shows its controls at the pointer, so
+    /// it stays usable even when macOS hides the menu-bar icon in a crowded menu bar.
+    func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows flag: Bool) -> Bool {
+        showControls()
+        return false
+    }
+
+    func showControls() {
+        guard !testMode else { return }
+        NSApp.activate(ignoringOtherApps: true)
+        let menu = NSMenu()
+        menuNeedsUpdate(menu)
+        menu.popUp(positioning: nil, at: NSEvent.mouseLocation, in: nil)
+    }
+
+    var iconIsVisible: Bool {
+        guard let window = item?.button?.window else { return false }
+        guard window.occlusionState.contains(.visible) else { return false }
+        return NSScreen.screens.contains { $0.frame.intersects(window.frame) }
+    }
+
+    func checkIconVisible() {
+        guard !iconIsVisible, !state.preferences.hiddenIconNoticeShown else { return }
+        state.preferences.hiddenIconNoticeShown = true
+        state.persist()
+        NSApp.activate(ignoringOtherApps: true)
+        let alert = NSAlert()
+        alert.messageText = "Your menu bar is full"
+        alert.informativeText = """
+        macOS is hiding Benny Hill Climber's icon because there's no room left in the menu bar \
+        (it hides overflow icons, especially next to the camera notch).
+
+        You can always reach the controls by opening Benny Hill Climber again from Spotlight or Applications. \
+        To make room for the icon, hold ⌘ and drag other menu-bar icons out of the bar.
+        """
+        alert.addButton(withTitle: "Show controls now")
+        alert.addButton(withTitle: "OK")
+        if alert.runModal() == .alertFirstButtonReturn { showControls() }
     }
 
     func applicationWillTerminate(_ notification: Notification) {
@@ -346,6 +396,9 @@ final class ChaseSceneApp: NSObject, NSApplicationDelegate, NSMenuDelegate {
         }
         items.append(action("    Copy MCP server config (other AI tools)", #selector(copyMCPConfig)))
         items.append(.separator())
+        let relaunch = action("Let AI tools reopen this app after it quits", #selector(toggleLaunchFromAI))
+        relaunch.state = state.preferences.launchFromAI ? .on : .off
+        items.append(relaunch)
         let login = action("Open at login", #selector(toggleLogin))
         login.state = SMAppService.mainApp.status == .enabled ? .on : .off
         items.append(login)
@@ -557,6 +610,11 @@ final class ChaseSceneApp: NSObject, NSApplicationDelegate, NSMenuDelegate {
 
     @objc func showHelp() {
         if let url = Bundle.main.url(forResource: "Help", withExtension: "html") { NSWorkspace.shared.open(url) }
+    }
+
+    @objc func toggleLaunchFromAI() {
+        state.preferences.launchFromAI.toggle()
+        state.persist()
     }
 
     @objc func quit() {

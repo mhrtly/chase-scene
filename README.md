@@ -128,6 +128,10 @@ The compact icon matches the other menu-bar icons: white on a dark bar, with aut
 
 The menu has **Chase music** and **Rolling credits** toggles, a **volume** slider, a music preview, and **Settings**. Settings contains credits options, song choices, AI connections, optional software input detection, ignored apps, and Open at login.
 
+**Can't see the icon?** macOS hides menu-bar icons that don't fit, especially beside the camera notch. Open **Benny Hill Climber** again from Spotlight or Applications at any time and the same menu pops up at your pointer. The app tells you once if it notices its icon is hidden.
+
+**Quitting means quitting.** Choosing **Quit** from the menu, or quitting the app in Activity Monitor, keeps it closed. AI tools don't reopen it unless you turn on **Settings → Let AI tools reopen this app after it quits**. You can also run `pkill -x ChaseScene`.
+
 ## Privacy and honesty
 
 - **Everything stays on your Mac.** No network access, no telemetry, no accounts.

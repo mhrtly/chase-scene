@@ -87,8 +87,10 @@ func runHook(client: String) {
         // A missing app never blocks the AI's task or changes its permissions. Only a failed *start*
         // is worth mentioning (rate-limited), so silence is never mistaken for "it's working".
         let failedBegin = request?["action"] as? String == "begin"
-        let quit = Preferences.load(from: directory).quitByUser
-        if failedBegin && !quit && shouldWarn(directory: directory) {
+        // Only nag when the person asked AI tools to (re)open the app and that failed;
+        // a closed app is otherwise just a choice.
+        let prefs = Preferences.load(from: directory)
+        if failedBegin && prefs.launchFromAI && !prefs.quitByUser && shouldWarn(directory: directory) {
             let message = "Benny Hill Climber couldn't start its chase music: \(error)"
             print(String(data: jsonLine(["systemMessage": message]), encoding: .utf8)!.trimmingCharacters(in: .newlines))
         } else {

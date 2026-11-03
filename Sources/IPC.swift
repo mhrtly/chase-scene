@@ -116,7 +116,8 @@ func enclosingAppBundle() -> URL? {
 func requestWithLaunch(_ request: [String: Any], launch: Bool = true) throws -> [String: Any] {
     if let result = try? sendRequest(request) { return result }
     let environment = ProcessInfo.processInfo.environment
-    if launch && environment["CHASE_SCENE_NO_AUTO_LAUNCH"] != "1" && !Preferences.load(from: stateDirectory()).quitByUser {
+    let prefs = Preferences.load(from: stateDirectory())
+    if launch && environment["CHASE_SCENE_NO_AUTO_LAUNCH"] != "1" && prefs.launchFromAI && !prefs.quitByUser {
         if openApp(arguments: ["-g"]) {
             for _ in 0..<40 {
                 if let result = try? sendRequest(request) { return result }
